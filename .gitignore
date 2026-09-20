@@ -25,6 +25,10 @@ backups/
 
 # Builds / fichiers distribuables
 *.apk
+!downloads/GlowStock-1.0.0.apk
+android/build/
+android/signing/
+android/.device/
 *.zip
 
 # Logs

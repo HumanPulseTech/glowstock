@@ -314,6 +314,15 @@ app.get('/sitemap.xml', (req, res) => {
 });
 
 // Utilise un chemin absolu : les fichiers publics restent accessibles même si le serveur est lancé depuis un autre dossier.
+app.get('/telecharger/glowstock.apk', (req, res, next) => {
+    res.setHeader('X-Robots-Tag', 'noindex');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.type('application/vnd.android.package-archive');
+    res.download(path.join(__dirname, 'downloads', 'GlowStock-1.0.0.apk'), 'GlowStock-1.0.0.apk', (error) => {
+        if (error && !res.headersSent) next(error);
+    });
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/api/offers', async (req, res, next) => {
