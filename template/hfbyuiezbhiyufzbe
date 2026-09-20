@@ -1,0 +1,16 @@
+                <tr>
+                  <td>
+                    <div class="product-cell">
+                      <div class="thumb"><div class="bottle" style="background:#d9b0b7"></div></div>
+                      <div class="product-meta">
+                        <strong>Rubber Base Nude</strong>
+                        <span>Indigo</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="mono">001259</td>
+                  <td>Base</td>
+                  <td class="stock-num">0</td>
+                  <td>2</td>
+                  <td><span class="badge danger">Rupture</span></td>
+                </tr>

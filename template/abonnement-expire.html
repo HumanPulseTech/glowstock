@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GlowStock — Abonnement</title>
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,800,900&display=swap" rel="stylesheet">
+  <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#FAF9F6;color:#333130;font-family:Satoshi,sans-serif}.card{width:min(90vw,520px);padding:36px;border:1px solid #EBE9E4;border-radius:28px;background:white;box-shadow:0 20px 50px rgba(39,37,34,.06)}.logo{display:block;width:150px;height:auto;margin-bottom:30px}h1{margin:0 0 12px;font-size:29px;letter-spacing:-.04em}p{line-height:1.6;color:#827F7C}.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}.actions[hidden]{display:none}.button{display:inline-block;padding:13px 17px;border-radius:14px;background:#8FA393;color:white;text-decoration:none;font-weight:700}.secondary{background:#fff;color:#333130;border:1px solid #EBE9E4}</style>
+</head>
+<body>
+  <main class="card">
+    <img class="logo" src="/assets/glowstock-logo.svg" alt="GlowStock">
+    <h1 id="title">Abonnement nécessaire</h1>
+    <p id="message">Votre abonnement ne permet plus l’accès à cette fonctionnalité.</p>
+    <div id="consultation" class="actions" hidden><a class="button secondary" href="/dashboard/inv/">Consulter l’inventaire</a><a class="button secondary" href="/dashboard/PAO/">Consulter les PAO</a></div>
+    <div class="actions"><a class="button" href="/parametres/">Renouveler mon abonnement</a></div>
+  </main>
+  <script>const limited=new URLSearchParams(location.search).get('mode')==='limite';if(limited){document.getElementById('title').textContent='Période de grâce';document.getElementById('message').textContent='Votre abonnement a expiré récemment. Vous pouvez encore consulter votre inventaire et vos PAO pendant 15 jours, mais les ajouts et modifications sont suspendus.';document.getElementById('consultation').hidden=false}</script>
+</body>
+</html>

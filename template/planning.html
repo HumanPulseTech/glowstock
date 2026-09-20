@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GlowStock — Planning</title>
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,800,900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/planning.css">
+  <link rel="stylesheet" href="/css/mobile-nav.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><img class="brand-logo" src="/assets/glowstock-logo.svg" alt="GlowStock"></div>
+      <div class="side-group">
+        <div class="side-title">Navigation</div>
+        <a class="nav-item" data-feature="dashboard" href="/dashboard/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13h8V3H3z"></path><path d="M13 21h8v-6h-8z"></path><path d="M13 10h8V3h-8z"></path><path d="M3 21h8v-4h-8z"></path></svg>Tableau de bord</a>
+        <a class="nav-item" data-feature="inventory" href="/dashboard/inv/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0L4 6.27A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><path d="M3.29 7 12 12l8.71-5"></path><path d="M12 22V12"></path></svg>Inventaire</a>
+        <a class="nav-item" data-feature="pao" href="/dashboard/PAO/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"></path><path d="m18 20-6-6-6 6"></path><path d="M12 4v6"></path><path d="m6 10 6 6 6-6"></path></svg>PAO</a>
+        <a class="nav-item active" data-feature="planning" href="/dashboard/planning/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>Planning</a>
+        <a class="nav-item" data-feature="tickets" href="/ticket/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path><path d="M8 9h8M8 13h5"></path></svg>Signaler un problème</a>
+        <a data-admin-link class="nav-item" href="/admin/" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>Administration</a>
+      </div>
+      <div class="side-group">
+        <div class="side-title">Compte</div>
+        <a class="nav-item" href="/parametres/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82A1.65 1.65 0 0 0 3 13.91V14a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.04 4.3l.06.06A1.65 1.65 0 0 0 8.92 4a1.65 1.65 0 0 0 1-1.51V2.4a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.11.38.6 1 .99 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>Paramètres</a>
+      </div>
+      <div class="sidebar-card"><strong>Planning simple</strong><p>Clique sur un créneau libre pour ajouter un rendez-vous.</p></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar planning-topbar">
+        <div class="top-left"><h1>Planning</h1><p>Organise tes rendez-vous semaine après semaine.</p></div>
+        <button id="planning_settings_button" class="ghost-btn planning-settings" type="button" hidden>Paramètres</button>
+      </header>
+      <section class="content planning-content">
+        <div class="planning-toolbar card">
+          <div><span id="planning_week_number" class="planning-week-number">Semaine —</span><h2 id="planning_week_label">Chargement du planning…</h2></div>
+          <div class="planning-actions"><button id="planning_previous" class="ghost-btn" type="button" aria-label="Semaine précédente">←</button><button id="planning_today" class="ghost-btn" type="button">Aujourd’hui</button><button id="planning_next" class="ghost-btn" type="button" aria-label="Semaine suivante">→</button></div>
+        </div>
+        <p id="planning_message" class="planning-message" role="status" aria-live="polite"></p>
+        <section class="planning-card card" aria-label="Planning de la semaine">
+          <div id="planning_calendar" class="planning-calendar" aria-busy="true"></div>
+        </section>
+        <p class="planning-help">Clique sur un créneau libre pour ajouter un rendez-vous. Les créneaux grisés correspondent aux jours ou horaires fermés.</p>
+      </section>
+    </main>
+  </div>
+
+  <div id="planning_entry_modal" class="planning-modal-backdrop" role="presentation" hidden>
+    <section class="planning-modal" role="dialog" aria-modal="true" aria-labelledby="planning_entry_title">
+      <header class="planning-modal-head"><div><h2 id="planning_entry_title">Nouveau rendez-vous</h2><p>Le créneau est prérempli, tu peux l’ajuster si besoin.</p></div><button class="planning-close" type="button" data-close-entry aria-label="Fermer">×</button></header>
+      <form id="planning_entry_form" class="planning-form">
+        <input id="planning_entry_id" type="hidden">
+        <div class="planning-form-grid"><label>Date<input id="planning_entry_date" type="date" required></label><label>Cliente<input id="planning_entry_client" type="text" maxlength="150" autocomplete="name" required placeholder="Nom de la cliente"></label><label>Début<input id="planning_entry_start" type="time" step="1800" required></label><label>Fin<input id="planning_entry_end" type="time" step="1800" required></label></div>
+        <label>Prestation <span>(facultatif)</span><input id="planning_entry_service" type="text" maxlength="150" placeholder="Ex. Pose complète"></label>
+        <label>Note <span>(facultatif)</span><textarea id="planning_entry_notes" maxlength="2000" rows="3" placeholder="Informations utiles pour ce rendez-vous"></textarea></label>
+        <p id="planning_entry_error" class="planning-form-error" role="alert" hidden></p>
+        <footer class="planning-modal-actions"><button id="planning_entry_delete" class="planning-delete" type="button" hidden>Supprimer</button><span></span><button class="ghost-btn" type="button" data-close-entry>Annuler</button><button id="planning_entry_submit" class="planning-primary" type="submit">Enregistrer</button></footer>
+      </form>
+    </section>
+  </div>
+
+  <div id="planning_settings_modal" class="planning-modal-backdrop" role="presentation" hidden>
+    <section class="planning-modal planning-settings-modal" role="dialog" aria-modal="true" aria-labelledby="planning_settings_title">
+      <header class="planning-modal-head"><div><h2 id="planning_settings_title">Paramètres du planning</h2><p>Choisis les jours ouverts et les horaires proposés aux rendez-vous.</p></div><button class="planning-close" type="button" data-close-settings aria-label="Fermer">×</button></header>
+      <form id="planning_settings_form" class="planning-form">
+        <div id="planning_hours" class="planning-hours"></div>
+        <p id="planning_settings_error" class="planning-form-error" role="alert" hidden></p>
+        <footer class="planning-modal-actions"><span></span><button class="ghost-btn" type="button" data-close-settings>Annuler</button><button id="planning_settings_submit" class="planning-primary" type="submit">Enregistrer</button></footer>
+      </form>
+    </section>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/socket-client.js"></script>
+  <script src="/js/feature-flags.js"></script>
+  <script src="/js/mobile-nav.js"></script>
+  <script src="/js/admin-nav.js"></script>
+  <script src="/js/error-reporter.js"></script>
+  <script src="/js/planning.js"></script>
+</body>
+</html>

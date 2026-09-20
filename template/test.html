@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>GlowStock — Scanner</title>
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,800,900&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg:#FAF9F6; --surface:#fff; --border:#EBE9E4; --text:#333130; --muted:#827F7C; --sage:#8FA393; --sage-soft:#EEF4EF; --danger:#D97777; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:Satoshi,sans-serif; }
+    .scanner-shell { width:min(100%,720px); margin:0 auto; padding:18px; display:grid; gap:16px; }
+    .scanner-header { display:flex; align-items:center; gap:14px; }
+    .back { display:grid; place-items:center; width:42px; height:42px; border:1px solid var(--border); border-radius:13px; background:var(--surface); color:var(--text); text-decoration:none; font-size:22px; }
+    .brand-logo { display:block; width:145px; height:auto; }
+    .scanner-heading { margin:0; font-size:24px; letter-spacing:-.04em; }
+    .scanner-subtitle { margin:3px 0 0; color:var(--muted); font-size:14px; }
+    .camera-card, .result-card, .manual-card { padding:16px; border:1px solid var(--border); border-radius:22px; background:var(--surface); box-shadow:0 10px 30px rgba(39,37,34,.04); }
+    .camera-frame { overflow:hidden; position:relative; aspect-ratio:4/3; border-radius:16px; background:#1f2421; }
+    video { width:100%; height:100%; display:block; object-fit:cover; }
+    .scan-line { position:absolute; top:50%; left:9%; right:9%; height:2px; background:var(--sage); box-shadow:0 0 14px rgba(143,163,147,.8); }
+    .camera-actions, .result-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+    button, .button { min-height:44px; border:0; border-radius:13px; padding:11px 15px; font:inherit; font-weight:700; cursor:pointer; text-decoration:none; }
+    .primary { background:var(--sage); color:white; }
+    .secondary { border:1px solid var(--border); background:var(--surface); color:var(--text); }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    .status { min-height:22px; margin:13px 0 0; color:var(--muted); font-size:14px; }
+    .status.ok { color:#5f8067; } .status.error { color:var(--danger); }
+    .manual-card { display:grid; gap:10px; }
+    .manual-card label { font-weight:700; font-size:14px; }
+    .manual-row { display:flex; gap:8px; }
+    .manual-row input { min-width:0; flex:1; height:44px; border:1px solid var(--border); border-radius:13px; padding:0 12px; font:inherit; }
+    .manual-row input:focus { outline:0; border-color:var(--sage); box-shadow:0 0 0 4px rgba(143,163,147,.14); }
+    .result-card[hidden] { display:none; }
+    .result-kicker { margin:0 0 5px; color:var(--muted); font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; }
+    .result-title { margin:0; font-size:23px; }
+    .result-reference { margin:5px 0 0; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; color:var(--muted); }
+    .result-details { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:16px; }
+    .detail { padding:12px; border-radius:13px; background:var(--bg); }
+    .detail span { display:block; color:var(--muted); font-size:12px; } .detail strong { display:block; margin-top:3px; }
+    .pao-list { display:grid; gap:8px; margin-top:15px; }
+    .pao-item { padding:11px 12px; border:1px solid #dce8de; border-radius:12px; background:var(--sage-soft); font-size:14px; }
+    .pao-item.expired { border-color:#f3caca; background:#fff1f1; }
+    .pao-item.expired strong { color:#b75d5d; }
+    .pao-item small { display:block; color:var(--muted); margin-top:2px; }
+    .empty-result { display:grid; gap:8px; }
+    .empty-result p { margin:0; color:var(--muted); line-height:1.5; }
+    @media (max-width:480px) { .scanner-shell { padding:14px; } .result-details { grid-template-columns:1fr 1fr; } .manual-row { flex-direction:column; } .manual-row button { width:100%; } }
+  </style>
+</head>
+<body>
+  <main class="scanner-shell">
+    <header class="scanner-header">
+      <a class="back" href="/dashboard/" aria-label="Retour au tableau de bord">‹</a>
+      <div><img class="brand-logo" src="/assets/glowstock-logo.svg" alt="GlowStock"><h1 class="scanner-heading">Scanner un produit</h1><p class="scanner-subtitle">Scanne le code-barres pour retrouver ton article.</p></div>
+    </header>
+
+    <section class="camera-card">
+      <div class="camera-frame"><video id="video" playsinline muted></video><div class="scan-line" aria-hidden="true"></div></div>
+      <div class="camera-actions"><button id="startBtn" class="primary" type="button">Activer la caméra</button><button id="stopBtn" class="secondary" type="button" disabled>Arrêter</button></div>
+      <p id="status" class="status" role="status">Prêt à scanner.</p>
+    </section>
+
+    <form id="manual_form" class="manual-card">
+      <label for="barcode_input">Saisir le code manuellement</label>
+      <div class="manual-row"><input id="barcode_input" inputmode="numeric" autocomplete="off" placeholder="Ex. 3760123456789"><button class="secondary" type="submit">Rechercher</button></div>
+    </form>
+
+    <section id="result" class="result-card" hidden aria-live="polite"></section>
+  </main>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/socket-client.js"></script>
+  <script src="https://unpkg.com/@zxing/browser@latest"></script>
+  <script src="/js/error-reporter.js"></script>
+  <script>
+    const socket = window.glowstockSocket || (window.glowstockSocket = io());
+    const video = document.getElementById('video');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const manualForm = document.getElementById('manual_form');
+    const barcodeInput = document.getElementById('barcode_input');
+    const result = document.getElementById('result');
+    const status = document.getElementById('status');
+    let stream = null;
+    let detector = null;
+    let zxingReader = null;
+    let zxingControls = null;
+    let decoderMode = '';
+    let scanning = false;
+    let frameId = null;
+    let lastScanned = '';
+    let detectedCodes = [];
+    const REQUIRED_CAPTURES = 6;
+    const MINIMUM_MATCHES = 4;
+
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[char]));
+    const date = (value) => value ? new Intl.DateTimeFormat('fr-FR').format(new Date(value)) : '—';
+    const setStatus = (text, type = '') => { status.textContent = text; status.className = `status ${type}`; };
+    const reportClientError = (error, type) => socket.emit('client error', { message: error?.message || String(error), context: { page: window.location.pathname, type } });
+    const showError = (text) => { result.hidden = false; result.innerHTML = `<div class="empty-result"><h2 class="result-title">Recherche impossible</h2><p>${escapeHtml(text)}</p></div>`; };
+
+    function renderResult(data) {
+      result.hidden = false;
+      if (!data.found) {
+        result.innerHTML = `<div class="empty-result"><p class="result-kicker">Aucun article trouvé</p><h2 class="result-title">Ce code-barres n’est pas encore dans ton inventaire.</h2><p>Tu peux créer directement la fiche produit avec le code-barres <strong>${escapeHtml(data.barcode || data.reference)}</strong>.</p><div class="result-actions">${data.canCreateProduct ? `<a class="button primary" href="/dashboard/add_produit/?barcode=${encodeURIComponent(data.barcode || data.reference)}">Créer cet article</a>` : '<p>Ton rôle ne permet pas de créer un article.</p>'}</div></div>`;
+        return;
+      }
+      const paos = Array.isArray(data.paos) ? data.paos : [];
+      const getPaoState = (pao) => {
+        const expiry = new Date(pao.dFin);
+        expiry.setHours(23, 59, 59, 999);
+        return pao.active && expiry >= new Date() ? { label: 'En cours', className: '' } : { label: 'Périmée', className: 'expired' };
+      };
+      const activePaos = paos.filter((pao) => getPaoState(pao).className !== 'expired');
+      const paoMarkup = paos.length ? `<div class="pao-list">${paos.map((pao) => { const state = getPaoState(pao); return `<div class="pao-item ${state.className}"><strong>PAO ${escapeHtml(pao.ref)} · ${state.label}</strong><small>Ouvert le ${date(pao.dStart)} · valable jusqu’au ${date(pao.dFin)}</small></div>`; }).join('')}</div>` : '<p class="status">Aucune PAO enregistrée pour cet article.</p>';
+      const paoAction = data.canManagePao ? `<a class="button primary" href="/dashboard/PAO/?produit=${encodeURIComponent(data.product.id)}">${activePaos.length ? 'Ajouter une PAO' : 'Ajouter la PAO'}</a>` : '';
+        result.innerHTML = `<p class="result-kicker">Article trouvé dans l’inventaire</p><h2 class="result-title">${escapeHtml(data.product.nom)}</h2><p class="result-reference">Réf. fournisseur : ${escapeHtml(data.product.ref_fournisseur)} · Code-barres : ${escapeHtml(data.product.code_barres || '—')}</p><div class="result-details"><div class="detail"><span>Marque</span><strong>${escapeHtml(data.product.marque || '—')}</strong></div><div class="detail"><span>Stock</span><strong>${escapeHtml(data.product.quantite)}</strong></div></div>${paoMarkup}<div class="result-actions"><a class="button secondary" href="/dashboard/inv/">Voir l’inventaire</a>${paoAction}</div>`;
+    }
+
+    function lookup(value) {
+      const reference = String(value || '').trim();
+      if (!reference) return setStatus('Saisis ou scanne un code-barres.', 'error');
+      barcodeInput.value = reference;
+      setStatus('Recherche de l’article…');
+      socket.emit('scan barcode', reference);
+    }
+
+    // Six lectures sont comparées avant de valider un code-barres.
+    function registerDetectedCode(rawValue) {
+      const value = String(rawValue || '').trim();
+      if (!scanning || !value) return false;
+
+      detectedCodes.push(value);
+      const captureNumber = detectedCodes.length;
+      setStatus(`Vérification du code : lecture ${captureNumber}/${REQUIRED_CAPTURES}…`);
+
+      if (captureNumber < REQUIRED_CAPTURES) return false;
+
+      const votes = detectedCodes.reduce((counts, code) => {
+        counts.set(code, (counts.get(code) || 0) + 1);
+        return counts;
+      }, new Map());
+      const [bestCode, bestCount] = [...votes.entries()].sort((a, b) => b[1] - a[1])[0];
+
+      if (bestCount >= MINIMUM_MATCHES) {
+        lastScanned = bestCode;
+        setStatus(`Code confirmé : ${bestCode} (${bestCount}/${REQUIRED_CAPTURES} lectures)`, 'ok');
+        lookup(bestCode);
+        stopScanning();
+        return true;
+      }
+
+      detectedCodes = [];
+      setStatus(`Lectures trop différentes : nouvelle série de ${REQUIRED_CAPTURES} lectures…`, 'error');
+      return false;
+    }
+
+    async function scanLoop() {
+      if (!scanning) return;
+      try {
+        const codes = await detector.detect(video);
+        if (codes.length && codes[0].rawValue && registerDetectedCode(codes[0].rawValue)) return;
+      } catch (error) { reportClientError(error, 'barcode_detect'); setStatus(`Erreur de scan : ${error.message}`, 'error'); }
+      frameId = requestAnimationFrame(scanLoop);
+    }
+
+    // Fallback caméra pour les navigateurs qui ne proposent plus BarcodeDetector.
+    async function initDetector() {
+      if ('BarcodeDetector' in window) {
+        try {
+          const supported = await BarcodeDetector.getSupportedFormats();
+          const wanted = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf', 'codabar'];
+          const formats = wanted.filter((format) => supported.includes(format));
+          detector = formats.length ? new BarcodeDetector({ formats }) : new BarcodeDetector();
+          decoderMode = 'native';
+          return;
+        } catch { /* ZXing prend le relais ci-dessous. */ }
+      }
+      if (window.ZXingBrowser?.BrowserMultiFormatReader) {
+        zxingReader = new ZXingBrowser.BrowserMultiFormatReader();
+        decoderMode = 'zxing';
+        return;
+      }
+      throw new Error('La lecture caméra n’est pas disponible. Vérifie la connexion internet ou utilise la saisie manuelle.');
+    }
+
+    async function startScanning() {
+      if (scanning) return;
+      try {
+        await initDetector();
+        scanning = true; startBtn.disabled = true; stopBtn.disabled = false; lastScanned = ''; detectedCodes = [];
+        setStatus(`Caméra activée : vérification sur ${REQUIRED_CAPTURES} lectures…`);
+        if (decoderMode === 'zxing') {
+          zxingControls = await zxingReader.decodeFromConstraints({ video: { facingMode: { ideal: 'environment' } }, audio: false }, video, (code) => {
+            const value = code?.getText?.();
+            registerDetectedCode(value);
+          });
+        } else {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+          video.srcObject = stream;
+          await video.play();
+          scanLoop();
+        }
+      } catch (error) { reportClientError(error, 'barcode_camera'); setStatus(error.message || 'Impossible d’activer la caméra.', 'error'); stopScanning(); }
+    }
+
+    function stopScanning() {
+      scanning = false;
+      if (frameId) cancelAnimationFrame(frameId);
+      frameId = null;
+      if (zxingControls) zxingControls.stop();
+      zxingControls = null; zxingReader = null;
+      if (stream) stream.getTracks().forEach((track) => track.stop());
+      stream = null; video.srcObject = null; detectedCodes = []; startBtn.disabled = false; stopBtn.disabled = true;
+    }
+
+    startBtn.addEventListener('click', startScanning);
+    stopBtn.addEventListener('click', stopScanning);
+    manualForm.addEventListener('submit', (event) => { event.preventDefault(); lookup(barcodeInput.value); });
+    socket.on('barcode lookup response', (data) => { setStatus(data.found ? 'Article trouvé.' : 'Aucun article trouvé.', data.found ? 'ok' : ''); renderResult(data); });
+    socket.on('scan error', (error) => { setStatus(error, 'error'); showError(error); });
+    socket.on('auth error', () => window.location.assign('/connexion/'));
+    socket.on('subscription blocked', (level) => window.location.assign(`/abonnement-expire/?mode=${level === 'limited' ? 'limite' : 'expire'}`));
+    window.addEventListener('beforeunload', stopScanning);
+  </script>
+</body>
+</html>

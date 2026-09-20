@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GlowStock — Inventaire UI</title>
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,800,900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/inv.css">
+  <link rel="stylesheet" href="/css/mobile-nav.css">
+  <link rel="stylesheet" href="/css/notifications.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="brand-logo" src="/assets/glowstock-logo.svg" alt="GlowStock">
+      </div>
+
+      <div class="side-group">
+        <div class="side-title">Navigation</div>
+        <a class="nav-item" data-feature="dashboard" href="/dashboard/">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13h8V3H3z"></path><path d="M13 21h8v-6h-8z"></path><path d="M13 10h8V3h-8z"></path><path d="M3 21h8v-4H3z"></path></svg>
+          Tableau de bord
+        </a>
+        <a class="nav-item active" data-feature="inventory" href="/dashboard/inv/">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><path d="M3.29 7 12 12l8.71-5"></path><path d="M12 22V12"></path></svg>
+          Inventaire
+        </a>
+        <a class="nav-item" data-feature="pao" href="/dashboard/pao/">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"></path><path d="m18 20-6-6-6 6"></path><path d="M12 4v6"></path><path d="m6 10 6 6 6-6"></path></svg>
+          PAO
+        </a>
+        <a class="nav-item" data-feature="tickets" href="/ticket/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path><path d="M8 9h8"></path><path d="M8 13h5"></path></svg>Signaler un problème</a>
+        <a data-admin-link class="nav-item" href="/admin/" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 10h18"></path></svg>
+          Administration
+        </a>
+      </div>
+
+      <div class="side-group">
+        <div class="side-title">Compte</div>
+        <a class="nav-item" href="/parametres/">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0A1.65 1.65 0 0 0 9 3.6V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0A1.65 1.65 0 0 0 20.4 9H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          Paramètres
+        </a>
+      </div>
+
+      <div class="sidebar-card">
+        <strong>Ajout rapide</strong>
+        <p>Ta logique clé reste présente : créer ou mettre à jour un produit via référence fournisseur. </p>
+        <button type="button" data-create-product data-subscription-full data-feature="products">Créer un produit</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="top-left">
+          <h1>Inventaire</h1>
+          <p>Retrouve tous tes produits, leurs références et leur niveau de stock.</p>
+        </div>
+
+        <div class="top-right">
+          <div class="search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+            <input type="text" placeholder="Rechercher une réf, un produit, une marque..." />
+          </div>
+          <div class="notification-center" data-notification-center data-feature="notifications">
+            <button class="icon-btn notification-trigger" data-notification-bell type="button" aria-label="Ouvrir les notifications" aria-expanded="false" aria-controls="notifications_menu">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+              <span class="notification-count" data-notification-count hidden>0</span>
+            </button>
+            <section id="notifications_menu" class="notification-menu" data-notification-menu hidden aria-label="Notifications">
+              <header class="notification-menu-head"><strong>Notifications</strong><span data-notification-total>À jour</span></header>
+              <div class="notification-list" data-notification-list role="status"></div>
+              <footer class="notification-menu-foot"><button class="notification-clear" data-clear-notifications type="button" disabled>Supprimer toutes les notifications</button></footer>
+            </section>
+          </div>
+          <div class="avatar">S</div>
+        </div>
+      </header>
+
+      <section class="content">
+        <div class="head-row">
+          <div class="headline-card">
+            <span>Vue catalogue</span>
+            <h2>Ton stock centralisé, propre et exploitable.</h2>
+            <p>Chaque produit dispose d’une référence fournisseur, d’une marque, d’une catégorie, d’un seuil d’alerte et d’un niveau de stock pour piloter les réassorts sans Excel. </p>
+          </div>
+
+          <div class="actions">
+            <button id="export_inventory_csv" type="button" class="btn-ghost" disabled>Exporter CSV</button>
+            <button id="import_inventory_csv" type="button" class="btn-ghost" data-subscription-full data-feature="products">Importer</button>
+            <input id="import_inventory_file" type="file" accept=".csv,text/csv" hidden>
+            <button type="button" data-create-product data-subscription-full data-feature="products" class="btn">+ Nouveau produit</button>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <input class="field" type="text" placeholder="Recherche rapide : Rubber, 001259, Indigo..." />
+          <select class="field">
+            <option>Toutes les marques</option>
+            <option>Indigo</option>
+            <option>Victoria Vynn</option>
+            <option>Andreia</option>
+          </select>
+          <select class="field">
+            <option>Toutes les catégories</option>
+            <option>Gel</option>
+            <option>Vernis</option>
+            <option>Base</option>
+            <option>Prépa</option>
+          </select>
+          <select class="field">
+            <option>Tous les statuts</option>
+            <option>OK</option>
+            <option>Stock bas</option>
+            <option>Rupture</option>
+          </select>
+        </div>
+
+        <div class="cards-row">
+          <div class="mini-card">
+            <div class="label">Produits actifs</div>
+            <div id="stat_total" class="value">—</div>
+            <div class="hint">Catalogue total prêt à être suivi.</div>
+          </div>
+          <div class="mini-card">
+            <div class="label">Marques suivies</div>
+            <div id="stat_marques" class="value">—</div>
+            <div class="hint">Indigo, Victoria Vynn, Andreia…</div>
+          </div>
+          <div class="mini-card">
+            <div class="label">Stock bas</div>
+            <div id="stat_bas" class="value">—</div>
+            <div class="hint">Produits à recommander rapidement.</div>
+          </div>
+          <div class="mini-card">
+            <div class="label">Sans seuil</div>
+            <div id="stat_alertes_off" class="value">—</div>
+            <div class="hint">Produits à configurer pour les alertes.</div>
+          </div>
+        </div>
+
+        <div class="layout">
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>Catalogue produits</h3>
+                <p>Vue complète du stock avec références fournisseur et statut.</p>
+              </div>
+              <button class="btn-ghost">Colonnes</button>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Produit</th>
+                  <th>Référence fournisseur</th>
+                  <th>Code-barres</th>
+                  <th>Catégorie</th>
+                  <th>Stock</th>
+                  <th>Seuil</th>
+                  <th>Statut</th>
+                </tr>
+              </thead>
+              <tbody id='liste'>
+                
+              </tbody>
+            </table>
+          </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="/js/socket-client.js"></script>
+        <script src="/js/feature-flags.js"></script>
+        <script src="/js/notifications.js"></script>
+        <script src="/js/mobile-nav.js"></script>
+    <script src="/js/subscription-banner.js"></script>
+    <script src="/js/create-product-nav.js"></script>
+    <script src="/js/error-reporter.js"></script>
+    <script src="/js/admin-nav.js"></script>
+    <script type="module" src="/js/inventaire.js"></script>
+</html>

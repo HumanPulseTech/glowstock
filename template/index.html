@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion de stock pour prothésistes ongulaires | GlowStock</title>
+    <meta name="description" content="GlowStock est le logiciel de gestion de stock conçu pour les prothésistes ongulaires : inventaire, alertes de réassort et suivi des dates de PAO.">
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+    <link rel="canonical" href="https://glowstock.fr/">
+    <link rel="alternate" hreflang="fr-FR" href="https://glowstock.fr/">
+    <link rel="alternate" hreflang="x-default" href="https://glowstock.fr/">
+    <meta property="og:locale" content="fr_FR">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="GlowStock">
+    <meta property="og:title" content="Gestion de stock pour prothésistes ongulaires | GlowStock">
+    <meta property="og:description" content="Inventaire, alertes de réassort et suivi des dates de PAO pour les professionnelles de l’onglerie.">
+    <meta property="og:url" content="https://glowstock.fr/">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Gestion de stock pour prothésistes ongulaires | GlowStock">
+    <meta name="twitter:description" content="Inventaire, alertes de réassort et suivi des dates de PAO pour les professionnelles de l’onglerie.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Satoshi', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            bg: '#FAF9F6',
+                            surface: '#FFFFFF',
+                            sage: '#8FA393',
+                            sageHover: '#798C7E',
+                            blush: '#EEDDDC',
+                            blushHover: '#E3C8C6',
+                            text: '#333130',
+                            muted: '#827F7C',
+                            border: '#EBE9E4',
+                        }
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px rgba(0, 0, 0, 0.03)',
+                        'glow': '0 20px 40px rgba(143, 163, 147, 0.15)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: theme('colors.brand.bg'); color: theme('colors.brand.text'); }
+        .hero-pattern {
+            background-image: radial-gradient(theme('colors.brand.sage') 0.5px, transparent 0.5px);
+            background-size: 24px 24px;
+            background-color: theme('colors.brand.bg');
+        }
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "name": "GlowStock",
+          "url": "https://glowstock.fr/",
+          "logo": "https://glowstock.fr/assets/glowstock-logo.svg",
+          "email": "contact@glowstock.fr",
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "12 Rue de la Part-Dieu",
+            "postalCode": "69003",
+            "addressLocality": "Lyon",
+            "addressCountry": "FR"
+          }
+        },
+        {
+          "@type": "SoftwareApplication",
+          "name": "GlowStock",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "url": "https://glowstock.fr/",
+          "description": "Logiciel de gestion de stock pour prothésistes ongulaires, avec inventaire, alertes de réassort et suivi des dates de PAO.",
+          "provider": {
+            "@type": "Organization",
+            "name": "GlowStock"
+          },
+          "inLanguage": "fr-FR"
+        },
+        {
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "À qui s’adresse GlowStock ?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "GlowStock est conçu pour les prothésistes ongulaires et les professionnelles de la beauté qui souhaitent suivre leur stock de produits au quotidien."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Que peut-on suivre avec GlowStock ?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Vous pouvez suivre votre inventaire, enregistrer les réassorts, recevoir des alertes de seuil et gérer les dates de période après ouverture (PAO) de vos produits."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Comment commencer avec GlowStock ?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Créez votre compte pour commencer à organiser vos références, votre inventaire et vos alertes depuis votre espace GlowStock."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+</head>
+<body class="antialiased">
+
+    <!-- Navigation -->
+    <nav class="fixed w-full top-0 z-50 bg-brand-bg/80 backdrop-blur-md border-b border-brand-border">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
+            <a class="flex items-center" href="/" aria-label="Accueil GlowStock">
+                <img class="w-32 sm:w-40 h-auto" src="/assets/glowstock-logo.svg" alt="GlowStock, logiciel de gestion de stock pour prothésistes ongulaires" width="1242" height="211">
+            </a>
+            <div class="hidden md:flex items-center gap-8 font-medium text-brand-text/80">
+                <a href="#fonctionnalites" class="hover:text-brand-sage transition-colors">Fonctionnalités</a>
+                <!--<a href="#pricing" class="hover:text-brand-sage transition-colors">Tarifs</a>-->
+            </div>
+            <div class="flex items-center gap-2 sm:gap-4">
+                <a href="/connexion/" class="px-3 py-2 md:px-0 md:py-0 border border-brand-border md:border-0 rounded-full font-medium text-brand-text hover:text-brand-sage transition-colors text-sm sm:text-base whitespace-nowrap">Connexion</a>
+                <a href="/ins/" class="px-3 sm:px-5 py-2.5 bg-brand-sage text-white rounded-full font-medium hover:bg-brand-sageHover transition-colors shadow-sm text-sm sm:text-base whitespace-nowrap">
+                    <span class="sm:hidden">Essai</span><span class="hidden sm:inline">Essai gratuit</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+    <!-- Hero Section -->
+    <section class="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden hero-pattern">
+        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-gradient-to-b from-brand-blush/40 to-transparent blur-3xl -z-10"></div>
+
+        <div class="max-w-7xl mx-auto px-6 text-center">
+            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-surface border border-brand-border shadow-soft mb-8">
+                <span class="w-2 h-2 rounded-full bg-brand-sage animate-pulse"></span>
+                <span class="text-sm font-medium">Spécial prothésistes ongulaires</span>
+            </div>
+
+            <h1 class="text-5xl lg:text-7xl font-black tracking-tight mb-6 leading-tight max-w-4xl mx-auto">
+                Gestion de stock <br class="hidden lg:block"/>
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-sage to-[#6A806E]">pour prothésistes ongulaires.</span>
+            </h1>
+
+            <p class="text-xl text-brand-muted mb-10 max-w-2xl mx-auto leading-relaxed">
+                Fini les ruptures de gel, les vernis périmés et les fichiers Excel compliqués. Suivez votre inventaire, anticipez vos réassorts et gardez vos produits sous contrôle.
+            </p>
+
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <a href="/ins/" class="w-full sm:w-auto px-8 py-4 bg-brand-sage text-white rounded-full font-medium hover:bg-brand-sageHover transition-all shadow-glow flex items-center justify-center gap-2 text-lg">
+                    Démarrer gratuitement
+                    <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                </a>
+                <a href="#fonctionnalites" class="w-full sm:w-auto px-8 py-4 bg-brand-surface text-brand-text border border-brand-border rounded-full font-medium hover:bg-brand-bg transition-colors flex items-center justify-center gap-2 text-lg shadow-soft">
+                    Découvrir les fonctionnalités
+                </a>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="fonctionnalites" class="py-24 bg-brand-surface border-y border-brand-border" aria-labelledby="fonctionnalites-titre">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 id="fonctionnalites-titre" class="text-3xl lg:text-4xl font-black mb-4">Un logiciel de stock pensé pour votre activité.</h2>
+                <p class="text-lg text-brand-muted max-w-2xl mx-auto">Un outil ciblé pour gérer les produits d’onglerie, gagner du temps au quotidien et éviter les pertes inutiles.</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Feature 1 -->
+                <div class="p-8 rounded-2xl bg-brand-bg border border-brand-border hover:shadow-soft transition-shadow">
+                    <div class="w-14 h-14 rounded-xl bg-brand-surface border border-brand-border flex items-center justify-center mb-6 shadow-sm">
+                        <i data-lucide="package-plus" class="w-7 h-7 text-brand-sage"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Réassort express</h3>
+                    <p class="text-brand-muted leading-relaxed">Tapez la référence de votre grossiste (ex: IND-042) pour ajouter vos nouveaux produits au stock en un seul clic lors du déballage.</p>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="p-8 rounded-2xl bg-brand-bg border border-brand-border hover:shadow-soft transition-shadow">
+                    <div class="w-14 h-14 rounded-xl bg-brand-surface border border-brand-border flex items-center justify-center mb-6 shadow-sm">
+                        <i data-lucide="bell-ring" class="w-7 h-7 text-brand-sage"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Alertes & Péremptions</h3>
+                    <p class="text-brand-muted leading-relaxed">Soyez notifiée avant de manquer de votre base Rubber préférée. Gérez facilement les dates de PAO de vos gels et liquides.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="py-24 bg-brand-bg" aria-labelledby="faq-titre">
+        <div class="max-w-4xl mx-auto px-6">
+            <div class="text-center mb-12">
+                <h2 id="faq-titre" class="text-3xl lg:text-4xl font-black mb-4">Questions fréquentes</h2>
+                <p class="text-lg text-brand-muted">L’essentiel à savoir sur la gestion de stock avec GlowStock.</p>
+            </div>
+            <div class="space-y-4">
+                <article class="p-7 rounded-2xl bg-brand-surface border border-brand-border">
+                    <h3 class="text-xl font-bold mb-2">À qui s’adresse GlowStock&nbsp;?</h3>
+                    <p class="text-brand-muted leading-relaxed">GlowStock est conçu pour les prothésistes ongulaires et les professionnelles de la beauté qui souhaitent suivre leur stock de produits au quotidien.</p>
+                </article>
+                <article class="p-7 rounded-2xl bg-brand-surface border border-brand-border">
+                    <h3 class="text-xl font-bold mb-2">Que peut-on suivre avec GlowStock&nbsp;?</h3>
+                    <p class="text-brand-muted leading-relaxed">Vous pouvez suivre votre inventaire, enregistrer les réassorts, recevoir des alertes de seuil et gérer les dates de période après ouverture (PAO) de vos produits.</p>
+                </article>
+                <article class="p-7 rounded-2xl bg-brand-surface border border-brand-border">
+                    <h3 class="text-xl font-bold mb-2">Comment commencer avec GlowStock&nbsp;?</h3>
+                    <p class="text-brand-muted leading-relaxed">Créez votre compte pour commencer à organiser vos références, votre inventaire et vos alertes depuis votre espace GlowStock.</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="pricing" class="py-24 bg-brand-bg" hidden>
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl lg:text-4xl font-black mb-4">Un tarif simple et transparent</h2>
+                <p class="text-lg text-brand-muted max-w-2xl mx-auto">Rentabilisé dès le premier vernis périmé évité.</p>
+            </div>
+
+            <div id="offers_list" class="flex flex-wrap justify-center gap-6 max-w-6xl mx-auto">
+              <article class="w-full md:w-[calc(50%-12px)] xl:w-[calc(33.333%-16px)] bg-brand-surface rounded-3xl p-8 border border-brand-border shadow-soft relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-2 bg-brand-sage"></div>
+                <div class="text-center mb-8">
+                    <h3 class="text-xl font-bold mb-2">Plan Solo</h3>
+                    <div class="flex items-baseline justify-center gap-1">
+                        <span class="text-5xl font-black">39.90€<p style="text-decoration-line: line-through;">79.90€</p></span>
+                        <span class="text-brand-muted">/ mois</span>
+                    </div>
+                    <p class="text-sm text-brand-muted mt-2">Sans engagement. Annulable à tout moment.</p>
+                </div>
+
+                <ul class="space-y-4 mb-8">
+                    <li class="flex items-center gap-3">
+                        <i data-lucide="check-circle-2" class="w-5 h-5 text-brand-sage flex-shrink-0"></i>
+                        <span class="text-brand-text">Produits en stock illimités</span>
+                    </li>
+                    <li class="flex items-center gap-3">
+                        <i data-lucide="check-circle-2" class="w-5 h-5 text-brand-sage flex-shrink-0"></i>
+                        <span class="text-brand-text">Alertes seuil & péremptions (PAO)</span>
+                    </li>
+                    <li class="flex items-center gap-3">
+                        <i data-lucide="check-circle-2" class="w-5 h-5 text-brand-sage flex-shrink-0"></i>
+                        <span class="text-brand-text">Recherche par référence fournisseur</span>
+                    </li>
+                    <!--<li class="flex items-center gap-3">
+                        <i data-lucide="check-circle-2" class="w-5 h-5 text-brand-sage flex-shrink-0"></i>
+                        <span class="text-brand-text">Module de facturation (Devis/Factures)</span>
+                    </li>-->
+                </ul>
+
+                <a href="/ins/" class="block w-full py-4 text-center bg-brand-sage text-white rounded-xl font-bold hover:bg-brand-sageHover transition-colors shadow-sm">
+                    Commencer l'essai de 14 jours
+                </a>
+              </article>
+            </div>
+        </div>
+    </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-brand-surface border-t border-brand-border py-12">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center">
+                <img class="w-32 h-auto" src="/assets/glowstock-logo.svg" alt="GlowStock" width="1242" height="211">
+            </div>
+            <p class="text-brand-muted text-sm">© 2026 GlowStock by HumanPulseTech. Pensé pour les indépendantes.</p>
+            <div class="flex gap-6 text-sm text-brand-muted">
+                <a href="/mentions-legales/" class="hover:text-brand-sage">Mentions légales</a>
+                <a href="/conditions-utilisation/" class="hover:text-brand-sage">Conditions</a>
+                <a href="/politique-confidentialite/" class="hover:text-brand-sage">Confidentialité</a>
+                <a href="mailto:contact@glowstock.fr" class="hover:text-brand-sage">Contact</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+    </script>
+    <script src="/js/index.js"></script>
+</body>
+</html>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GlowStock — Inventaire UI</title>
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,800,900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/inv.css">
+  <link rel="stylesheet" href="/css/mobile-nav.css">
+  <link rel="stylesheet" href="/css/notifications.css">
+  <style>
+    .modal-backdrop { position: fixed; inset: 0; z-index: 100; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(51,49,48,.35); backdrop-filter: blur(5px); }
+    .modal-backdrop.is-open { display: flex; }
+    .modal { width: min(100%, 560px); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow-md); overflow: hidden; }
+    .modal-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; padding: 24px 26px 18px; border-bottom: 1px solid var(--border); }
+    .modal-head h2 { margin: 0 0 6px; font-size: 24px; letter-spacing: -.04em; }
+    .modal-head p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .modal-close { width: 36px; height: 36px; border: 1px solid var(--border); background: var(--surface-2); border-radius: 12px; font-size: 22px; color: var(--muted); cursor: pointer; }
+    .modal-form { padding: 24px 26px 26px; display: grid; gap: 17px; }
+    .modal-field { display: grid; gap: 8px; }
+    .modal-field label { font-size: 14px; font-weight: 700; }
+    .modal-field input, .modal-field select { height: 48px; width: 100%; border: 1px solid var(--border); border-radius: 13px; padding: 0 13px; background: var(--surface); color: var(--text); font: inherit; outline: none; }
+    .modal-field input:focus, .modal-field select:focus { border-color: var(--sage); box-shadow: 0 0 0 4px rgba(143,163,147,.14); }
+    .product-search { position: relative; }
+    .product-results { position: absolute; z-index: 2; top: calc(100% + 7px); left: 0; right: 0; max-height: 210px; overflow-y: auto; padding: 6px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); box-shadow: var(--shadow-md); }
+    .product-results[hidden] { display: none; }
+    .product-result { display: grid; gap: 2px; width: 100%; padding: 10px 11px; border: 0; border-radius: 10px; background: transparent; color: var(--text); text-align: left; font: inherit; cursor: pointer; }
+    .product-result:hover, .product-result:focus { background: var(--sage-soft); outline: none; }
+    .product-result small { color: var(--muted); }
+    .product-empty { padding: 10px 11px; color: var(--muted); font-size: 14px; }
+    .modal-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 4px; }
+    .modal-message { display: none; margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--danger-bg); color: var(--danger); font-size: 14px; }
+    .modal-message.is-visible { display: block; }
+    .pao-table { border-collapse: separate; border-spacing: 0 8px; }
+    .pao-row td { border-top: 1px solid transparent; border-bottom: 1px solid transparent; }
+    .pao-row.success td { background: var(--sage-soft); border-color: #dce8de; }
+    .pao-row.warning td { background: var(--warning-bg); border-color: #f1dfc7; }
+    .pao-row.danger td { background: #fff1f1; border-color: #f3caca; }
+    .pao-row.danger td:last-child { color: #b75d5d; font-weight: 700; }
+    .pao-row td:first-child { border-left: 1px solid transparent; border-radius: 14px 0 0 14px; }
+    .pao-row td:last-child { border-right: 1px solid transparent; border-radius: 0 14px 14px 0; }
+    @media (max-width: 520px) { .modal-dates { grid-template-columns: 1fr; } .modal-actions { flex-direction: column-reverse; } .modal-actions button { width: 100%; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="brand-logo" src="/assets/glowstock-logo.svg" alt="GlowStock">
+      </div>
+
+      <div class="side-group">
+        <div class="side-title">Navigation</div>
+        <a class="nav-item" data-feature="dashboard" href="/dashboard/">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13h8V3H3z"></path><path d="M13 21h8v-6h-8z"></path><path d="M13 10h8V3h-8z"></path><path d="M3 21h8v-4H3z"></path></svg>
+          Tableau de bord
+        </a>
+        <a class="nav-item" data-feature="inventory" href="/dashboard/inv/">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><path d="M3.29 7 12 12l8.71-5"></path><path d="M12 22V12"></path></svg>
+          Inventaire
+        </a>
+        <a class="nav-item active" data-feature="pao" href="/dashboard/pao/">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"></path><path d="m18 20-6-6-6 6"></path><path d="M12 4v6"></path><path d="m6 10 6 6 6-6"></path></svg>
+          PAO
+        </a>
+        <a class="nav-item" data-feature="tickets" href="/ticket/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path><path d="M8 9h8"></path><path d="M8 13h5"></path></svg>Signaler un problème</a>
+        <a data-admin-link class="nav-item" href="/admin/" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 10h18"></path></svg>
+          Administration
+        </a>
+      </div>
+
+      <div class="side-group">
+        <div class="side-title">Compte</div>
+        <a class="nav-item" href="/parametres/">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0A1.65 1.65 0 0 0 9 3.6V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0A1.65 1.65 0 0 0 20.4 9H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          Paramètres
+        </a>
+      </div>
+
+      <div class="sidebar-card">
+        <strong>Ajout rapide</strong>
+        <p>Ta logique clé reste présente : créer ou mettre à jour un produit via référence fournisseur. </p>
+        <button type="button" data-create-product data-subscription-full>Créer un produit</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="top-left">
+          <h1>PAO</h1>
+          <p>Retrouver les articles et leur dates d'utilisation</p>
+        </div>
+
+        <div class="top-right">
+          <div class="search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+            <input type="text" placeholder="Rechercher une réf, un produit, une marque..." />
+          </div>
+          <div class="notification-center" data-notification-center data-feature="notifications">
+            <button class="icon-btn notification-trigger" data-notification-bell type="button" aria-label="Ouvrir les notifications" aria-expanded="false" aria-controls="notifications_menu">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+              <span class="notification-count" data-notification-count hidden>0</span>
+            </button>
+            <section id="notifications_menu" class="notification-menu" data-notification-menu hidden aria-label="Notifications">
+              <header class="notification-menu-head"><strong>Notifications</strong><span data-notification-total>À jour</span></header>
+              <div class="notification-list" data-notification-list role="status"></div>
+              <footer class="notification-menu-foot"><button class="notification-clear" data-clear-notifications type="button" disabled>Supprimer toutes les notifications</button></footer>
+            </section>
+          </div>
+          <div class="avatar">S</div>
+        </div>
+      </header>
+
+      <section class="content">
+        <div class="head-row">
+          <div class="headline-card">
+            <span>Vos dates</span>
+            <h2>Gere les dates d'utilisation de ton stock.</h2>
+            <p>Chaque produit dispose d’une Periode Après Ouverture appeler PAO, GlowStock vous propose de gerer cette date avec vous. </p>
+          </div>
+        </div>
+
+        
+
+        <div class="layout">
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>Catalogue produits</h3>
+                <p>Vue complète de votre stock qui dispose d'une PAO</p>
+              </div>
+              <button id="add_pao" data-subscription-full data-feature="pao" class="btn-ghost">Ajouter une PAO</button>
+            </div>
+
+            <table class="pao-table">
+              <thead>
+                <tr>
+                  <th>Produit</th>
+                  <th>Référence</th>
+                  <th>Date Ouverture</th>
+                  <th>Date Limite</th>
+                  <th>Réference Unique</th>
+                  <th>Statut</th>
+                </tr>
+              </thead>
+              <tbody id='liste'></tbody>
+            </table>
+          </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div id="pao_modal" class="modal-backdrop" aria-hidden="true">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="pao_modal_title">
+      <header class="modal-head">
+        <div><h2 id="pao_modal_title">Ajouter une PAO</h2><p>Renseigne l’ouverture réelle du produit, même si elle est antérieure à aujourd’hui.</p></div>
+        <button id="fermer_pao" class="modal-close" type="button" aria-label="Fermer">×</button>
+      </header>
+      <form id="pao_form" class="modal-form">
+        <div class="modal-field product-search"><label for="pao_produit_recherche">Produit</label><input id="pao_produit_recherche" type="search" autocomplete="off" placeholder="Rechercher un nom ou une référence" required /><input id="pao_produit" type="hidden" /><div id="pao_resultats" class="product-results" role="listbox" hidden></div></div>
+        <div class="modal-field"><label for="pao_ref">Référence unique</label><input id="pao_ref" type="text" maxlength="100" required placeholder="Ex. PAO-2026-001" /></div>
+        <div class="modal-dates">
+          <div class="modal-field"><label for="pao_debut">Date d’ouverture</label><input id="pao_debut" type="date" required /></div>
+          <div class="modal-field"><label for="pao_duree">Durée après ouverture</label><select id="pao_duree" required><option value="6">6 mois</option><option value="12">12 mois</option><option value="24">24 mois</option></select></div>
+        </div>
+        <p id="pao_message" class="modal-message" role="alert"></p>
+        <div class="modal-actions"><button id="annuler_pao" type="button" class="btn-ghost">Annuler</button><button type="submit" class="btn-ghost">Enregistrer la PAO</button></div>
+      </form>
+    </section>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/socket-client.js"></script>
+  <script src="/js/feature-flags.js"></script>
+  <script src="/js/notifications.js"></script>
+  <script src="/js/mobile-nav.js"></script>
+    <script src="/js/subscription-banner.js"></script>
+    <script src="/js/create-product-nav.js"></script>
+    <script src="/js/error-reporter.js"></script>
+    <script src="/js/admin-nav.js"></script>
+    <script src="/js/pao.js"></script>
+</body>
+</html>

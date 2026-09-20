@@ -1,0 +1,54 @@
+body {
+    padding: 0;
+    margin: 0;
+    background: #FAF9F6;
+    font-family: 'Satoshi', sans-serif
+}
+
+nav {
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    width: calc(100% - 20px);
+    border-bottom:1px solid #EBE9E4;
+    background-color: white;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+#cont_logo {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+}
+
+.text_logo {
+    font-weight: 800;
+}
+
+.no_border {
+    border: none;
+}
+
+.colorf_white {
+    background-color: white;
+}
+
+.cur_pointer {
+    cursor: pointer;
+}
+
+.f_size_20 {
+    font-size: 16px;
+}
+
+.but_simpl {
+    color: #333130;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.but_simpl:hover {
+    color: #8FA393;
+}

@@ -1,0 +1,37 @@
+{
+  "name": "glowstock",
+  "version": "1.0.0",
+  "description": "GlowStock est une WebApp qui permet la gestion du Stock pour les PO",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node app.js"
+  },
+  "author": "Jordan Buchet - HumanPulseTech",
+  "license": "ISC",
+  "dependencies": {
+    "@getbrevo/brevo": "^5.0.4",
+    "@popperjs/core": "^2.9.2",
+    "@types/socket.io": "^2.1.13",
+    "@types/socket.io-client": "^1.4.36",
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "^2.4.3",
+    "connect-session-knex": "^5.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.21.1",
+    "express-mysql-session": "^3.0.3",
+    "express-session": "^1.18.1",
+    "jquery": "^3.6.0",
+    "mariadb": "^3.5.2",
+    "mysql2": "^3.11.3",
+    "nodemon": "^3.1.7",
+    "path": "^0.12.7",
+    "socket.io": "^4.8.0",
+    "stripe": "^22.5.0"
+  },
+  "overrides": {
+  "socket.io-parser": "4.2.7",
+  "ws": "8.21.0"
+}
+}

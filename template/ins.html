@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GlowStock — Inscription</title>
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,800,900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #FAF9F6;
+      --surface: #FFFFFF;
+      --border: #EBE9E4;
+      --text: #333130;
+      --muted: #827F7C;
+      --sage: #8FA393;
+      --sage-hover: #798C7E;
+      --sage-soft: #EEF4EF;
+      --blush: #EEDDDC;
+      --shadow: 0 18px 50px rgba(39, 37, 34, 0.08);
+      --radius-xl: 28px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Satoshi', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .page {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+    }
+
+    .visual {
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 18% 18%, rgba(238, 221, 220, 0.95), transparent 30%),
+        radial-gradient(circle at 78% 24%, rgba(143, 163, 147, 0.35), transparent 28%),
+        radial-gradient(circle at 70% 72%, rgba(238, 221, 220, 0.75), transparent 26%),
+        linear-gradient(160deg, #f5f1ec 0%, #f9f7f4 50%, #f3efe9 100%);
+      padding: 48px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border-right: 1px solid var(--border);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .brand svg {
+      width: 24px;
+      height: 24px;
+      color: var(--sage);
+      flex-shrink: 0;
+    }
+
+    .brand-logo {
+      display: block;
+      width: 190px;
+      height: auto;
+      max-width: 100%;
+    }
+
+    .visual-card {
+      max-width: 560px;
+      background: rgba(255,255,255,0.7);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255,255,255,0.6);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius-xl);
+      padding: 28px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(235, 233, 228, 0.8);
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 18px;
+    }
+
+    .eyebrow::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--sage);
+      display: inline-block;
+    }
+
+    .visual h1 {
+      margin: 0 0 16px;
+      font-size: clamp(40px, 5vw, 66px);
+      line-height: 0.96;
+      letter-spacing: -0.05em;
+      font-weight: 900;
+      max-width: 9ch;
+    }
+
+    .visual p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.6;
+      max-width: 45ch;
+    }
+
+    .benefits {
+      margin-top: 28px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .benefit {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.8);
+      border: 1px solid var(--border);
+    }
+
+    .bullet {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      background: #fff;
+      border: 1px solid var(--border);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--sage);
+      font-weight: 900;
+    }
+
+    .benefit strong {
+      display: block;
+      font-size: 15px;
+      margin-bottom: 3px;
+    }
+
+    .benefit span {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .auth {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px;
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 500px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 30px;
+      padding: 42px;
+      box-shadow: 0 18px 60px rgba(39, 37, 34, 0.06);
+    }
+
+    .auth-card h2 {
+      margin: 0 0 8px;
+      font-size: 34px;
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+      font-weight: 900;
+    }
+
+    .auth-card .subtitle {
+      margin: 0 0 30px;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .field {
+      margin-bottom: 18px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      height: 56px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: #fff;
+      padding: 0 16px;
+      font-family: 'Satoshi', sans-serif;
+      font-size: 16px;
+      color: var(--text);
+      outline: none;
+      transition: border-color .18s ease, box-shadow .18s ease;
+    }
+
+    .field input::placeholder { color: #aaa59f; }
+
+    .field input:focus,
+    .field select:focus {
+      border-color: var(--sage);
+      box-shadow: 0 0 0 4px rgba(143, 163, 147, 0.14);
+    }
+
+    .hint {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .siret-status {
+      margin-top: 10px;
+      padding: 11px 13px;
+      border-radius: 12px;
+      background: var(--sage-soft);
+      color: #526857;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .siret-status[data-state="error"] {
+      background: #fbebeb;
+      color: #a64c4c;
+    }
+
+    .check {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+      margin: 8px 0 22px;
+    }
+
+    .check input {
+      width: 16px;
+      height: 16px;
+      margin-top: 2px;
+      accent-color: var(--sage);
+      flex-shrink: 0;
+    }
+
+    .check a,
+    .bottom-note a {
+      color: var(--text);
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .submit {
+      width: 100%;
+      height: 56px;
+      border: none;
+      border-radius: 16px;
+      background: var(--sage);
+      color: #fff;
+      font-family: 'Satoshi', sans-serif;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: background .18s ease, transform .18s ease;
+      box-shadow: 0 12px 24px rgba(143, 163, 147, 0.22);
+    }
+
+    .submit:hover {
+      background: var(--sage-hover);
+      transform: translateY(-1px);
+    }
+
+    .bottom-note {
+      margin-top: 20px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    @media (max-width: 980px) {
+      .page { grid-template-columns: 1fr; }
+      .visual {
+        min-height: 380px;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 28px;
+      }
+      .auth-card { max-width: 560px; }
+    }
+
+    @media (max-width: 640px) {
+      .visual { padding: 22px; }
+      .auth { padding: 18px; }
+      .auth-card {
+        padding: 28px 22px;
+        border-radius: 24px;
+      }
+      .grid-2 { grid-template-columns: 1fr; }
+      .visual h1 { font-size: 38px; }
+      .brand { font-size: 24px; }
+
+      .brand-logo {
+        width: 170px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="auth">
+      <div class="auth-card">
+        <h2>Créer un compte</h2>
+
+        <form>
+          <div class="grid-2">
+            <div class="field">
+              <label for="firstname">Prénom</label>
+              <input id="firstname" type="text" placeholder="Sarah" required/>
+            </div>
+            <div class="field">
+              <label for="lastname">Nom</label>
+              <input id="lastname" type="text" placeholder="Martin" required/>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="email">Email professionnel</label>
+            <input id="email" type="email" placeholder="vous@exemple.fr" required/>
+            <div class="hint">L'email doit être correct, il sera utile afin de valider votre compte</div>
+          </div>
+
+          <div class="field">
+            <label for="siret">SIRET de votre entreprise</label>
+            <input id="siret" type="text" inputmode="numeric" autocomplete="off" maxlength="17" placeholder="123 456 789 00012" aria-describedby="siret_hint siret_status" required/>
+            <div id="siret_hint" class="hint">Saisissez les 14 chiffres : votre entreprise sera retrouvée automatiquement.</div>
+            <div id="siret_status" class="siret-status" role="status" aria-live="polite" hidden></div>
+            <input id="company_name" type="hidden" />
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label for="password">Mot de passe</label>
+              <input id="password" type="password" placeholder="••••••••" required/>
+            </div>
+            <div class="field">
+              <label for="confirm">Confirmer</label>
+              <input id="confirm" type="password" placeholder="••••••••" required/>
+            </div>
+          </div>
+
+          <!--<div class="field">
+            <label>Numéro de siren</label>
+            <input id="siren" type="text" maxlength="9" minlength="9" pattern="[0-9]{9}" placeholder="000 000 000" required/>
+          </div>-->
+
+          <label class="check">
+            <input id="terms_accepted" type="checkbox" required />
+            <span>J’accepte les <a href="/conditions-utilisation/" target="_blank" rel="noopener">conditions d’utilisation</a>.</span>
+          </label>
+          <label class="check">
+            <input id="privacy_acknowledged" type="checkbox" required />
+            <span>J’ai pris connaissance de la <a href="/politique-confidentialite/" target="_blank" rel="noopener">politique de confidentialité</a>.</span>
+          </label>
+
+          <button id="valid" class="submit">Créer mon compte</button>
+        </form>
+
+        <div class="bottom-note">
+          Déjà un compte ? <a href="/connexion/">Se connecter</a>
+        </div>
+      </div>
+    </section>
+  </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/socket-client.js"></script>
+    <script src="/js/error-reporter.js"></script>
+    <script src="/js/ins.js"></script>
+</body>
+</html>

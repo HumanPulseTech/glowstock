@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GlowStock - Confirmation d'email</title>
+    
+    <!-- Police élégante (Satoshi) -->
+    <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* Palette GlowStock */
+            --bg: #f7f3f0;
+            --card: #fdfaf7;
+            --border: #e7dedc;
+            --text: #322a2b;
+            --muted: #84787a;
+            --pink: #f2e2e6;
+            --pink-light: #f9eef1;
+            --green: #a4b8a4;
+            --green-dark: #758e76;
+            --green-light: #eff5ef;
+            
+            --radius-card: 32px;
+            --radius-btn: 18px;
+            --radius-chip: 17px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Satoshi', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            line-height: 1.5;
+        }
+
+        /* Formes décoratives en fond */
+        .bg-shape {
+            position: absolute;
+            border-radius: 50%;
+            z-index: -1;
+            filter: blur(40px);
+            opacity: 0.7;
+        }
+        .shape-1 { width: 300px; height: 300px; background: var(--pink-light); top: 10%; left: 10%; }
+        .shape-2 { width: 250px; height: 250px; background: #ecf2ec; top: 5%; right: 15%; }
+        .shape-3 { width: 400px; height: 400px; background: var(--pink-light); bottom: -10%; right: 5%; }
+
+        /* Header Logo */
+        .logo {
+            position: absolute;
+            top: 40px;
+            left: 50px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text);
+            text-decoration: none;
+        }
+        .logo-dot {
+            width: 12px;
+            height: 12px;
+            background-color: var(--green-dark);
+            border-radius: 50%;
+        }
+        .logo img {
+            display: block;
+            width: 180px;
+            height: auto;
+        }
+
+        /* Carte Centrale */
+        .auth-card {
+            background-color: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-card);
+            width: 100%;
+            max-width: 770px;
+            padding: 60px 40px;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 10px 40px rgba(50, 42, 43, 0.03);
+            margin: 20px;
+        }
+
+        /* Badge en haut à gauche */
+        .status-chip {
+            position: absolute;
+            top: 38px;
+            left: 42px;
+            background-color: var(--green-light);
+            border: 1px solid #dbe3d9;
+            color: var(--green-dark);
+            padding: 8px 16px;
+            border-radius: var(--radius-chip);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* Icône de validation */
+        .icon-wrapper {
+            width: 116px;
+            height: 116px;
+            background-color: var(--pink);
+            border: 1px solid #edd6dc;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 40px auto 30px;
+        }
+        .icon-inner {
+            width: 68px;
+            height: 68px;
+            background-color: var(--green);
+            border: 1px solid #9ab09a;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 32px;
+        }
+
+        /* Typographie */
+        h1 {
+            font-size: 40px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--text);
+        }
+        p.description {
+            font-size: 18px;
+            color: var(--muted);
+            max-width: 580px;
+            margin: 0 auto 40px;
+        }
+
+        /* Bouton et liens */
+        .btn-primary {
+            display: inline-block;
+            background-color: var(--green-dark);
+            color: white;
+            text-decoration: none;
+            font-size: 18px;
+            font-weight: 500;
+            padding: 16px 40px;
+            border-radius: var(--radius-btn);
+            transition: all 0.2s ease;
+            width: 100%;
+            max-width: 350px;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-primary:hover {
+            background-color: #637a64;
+            transform: translateY(-1px);
+        }
+
+        .link-secondary {
+            display: block;
+            margin-top: 24px;
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 16px;
+            transition: color 0.2s ease;
+        }
+        .link-secondary:hover {
+            color: var(--text);
+        }
+
+        .footer-note {
+            display: block;
+            margin-top: 30px;
+            font-size: 13px;
+            color: #9a9091;
+        }
+
+        /* Responsive Mobile */
+        @media (max-width: 768px) {
+            .auth-card {
+                padding: 80px 20px 40px;
+                border-radius: 24px;
+            }
+            .status-chip {
+                top: 20px; left: 50%; transform: translateX(-50%);
+            }
+            h1 { font-size: 32px; }
+            p.description { font-size: 16px; }
+            .logo { top: 20px; left: 20px; font-size: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Formes de fond -->
+    <div class="bg-shape shape-1"></div>
+    <div class="bg-shape shape-2"></div>
+    <div class="bg-shape shape-3"></div>
+
+    <!-- Logo -->
+    <a href="/" class="logo">
+        <img src="/assets/glowstock-logo.svg" alt="GlowStock">
+    </a>
+
+    <!-- Carte Principale -->
+    <main class="auth-card">
+        <div class="status-chip" id="confirmation-status">Adresse en cours de confirmation</div>
+        
+        <div class="icon-wrapper">
+            <div class="icon-inner">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            </div>
+        </div>
+
+        <h1 id="confirmation-title">Email à Confirmé !</h1>
+        <p class="description" id="confirmation-description">
+            Pour accéder à votre compte GlowStock, il ne vous reste plus qu’à confirmer votre adresse e-mail. Votre essai gratuit de 14 jours est déjà activé. Si vous ne voyez pas l’e-mail de confirmation, regardez dans vos spams.
+        </p>
+
+        <a href="/" class="btn-primary" id="btn-dashboard">Renvoyer l'email</a>
+        <a href="/" class="link-secondary">Continuer plus tard</a>
+        
+        <span class="footer-note">Vous êtes sur la derniere étape.</span>
+    </main>
+
+    <script>
+        const params = new URLSearchParams(window.location.search)
+        if (params.get('mail') === 'failed') {
+            document.getElementById('confirmation-status').textContent = 'Compte créé — e-mail à renvoyer'
+            document.getElementById('confirmation-title').textContent = 'Compte créé !'
+            document.getElementById('confirmation-description').textContent = 'Votre compte est bien enregistré et votre essai gratuit de 14 jours est activé, mais l’e-mail de confirmation n’a pas pu être envoyé. Contactez-nous pour le faire renvoyer avant de vous connecter.'
+            const button = document.getElementById('btn-dashboard')
+            button.textContent = 'Retour à la connexion'
+            button.href = '/connexion/'
+        }
+    </script>
+
+</body>
+</html>

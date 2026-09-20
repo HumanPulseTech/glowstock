@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GlowStock — Connexion</title>
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,800,900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #FAF9F6;
+      --surface: #FFFFFF;
+      --border: #EBE9E4;
+      --text: #333130;
+      --muted: #827F7C;
+      --sage: #8FA393;
+      --sage-hover: #798C7E;
+      --blush: #EEDDDC;
+      --shadow: 0 18px 50px rgba(39, 37, 34, 0.08);
+      --radius-xl: 28px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Satoshi', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .page {
+      min-height: 100vh;
+      display: block;
+    }
+
+    .visual {
+      display: none;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .brand svg {
+      width: 24px;
+      height: 24px;
+      color: var(--sage);
+      flex-shrink: 0;
+    }
+
+    .brand-logo {
+      display: block;
+      width: 190px;
+      height: auto;
+      max-width: 100%;
+    }
+
+    .visual-card {
+      max-width: 560px;
+      background: rgba(255,255,255,0.7);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255,255,255,0.6);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius-xl);
+      padding: 28px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(235, 233, 228, 0.8);
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 18px;
+    }
+
+    .eyebrow::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--sage);
+      display: inline-block;
+    }
+
+    .visual h1 {
+      margin: 0 0 16px;
+      font-size: clamp(42px, 5vw, 68px);
+      line-height: 0.96;
+      letter-spacing: -0.05em;
+      font-weight: 900;
+      max-width: 8ch;
+    }
+
+    .visual p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.6;
+      max-width: 44ch;
+    }
+
+    .mini-dashboard {
+      margin-top: 28px;
+      background: rgba(255,255,255,0.86);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(51,49,48,0.06);
+    }
+
+    .mini-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .mini-title {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .mini-badge {
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: #f4f7f4;
+      color: var(--sage);
+      font-size: 13px;
+      font-weight: 700;
+      border: 1px solid #dfe8e0;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .mini-stat {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .mini-stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .mini-stat strong {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .mini-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .mini-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: #fff;
+      border: 1px solid var(--border);
+      font-size: 14px;
+    }
+
+    .mini-item .left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #8FA393;
+      flex-shrink: 0;
+    }
+
+    .danger { background: #D97777; }
+    .warn { background: #D9A05B; }
+
+    .mini-item .name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 250px;
+    }
+
+    .mini-item .qty {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .auth {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px;
+      background:
+        radial-gradient(circle at 20% 15%, rgba(238, 221, 220, 0.52), transparent 30%),
+        radial-gradient(circle at 85% 85%, rgba(143, 163, 147, 0.18), transparent 28%),
+        var(--bg);
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 470px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 30px;
+      padding: 42px;
+      box-shadow: 0 18px 60px rgba(39, 37, 34, 0.06);
+    }
+
+    .auth-card h2 {
+      margin: 0 0 8px;
+      font-size: 34px;
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+      font-weight: 900;
+    }
+
+    .auth-logo {
+      display: block;
+      width: 170px;
+      height: auto;
+      margin: 0 auto 32px;
+    }
+
+    .auth-card .subtitle {
+      margin: 0 0 30px;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .field {
+      margin-bottom: 18px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .input-wrap input {
+      width: 100%;
+      height: 56px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: #fff;
+      padding: 0 16px;
+      font-family: 'Satoshi', sans-serif;
+      font-size: 16px;
+      color: var(--text);
+      outline: none;
+      transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+
+    .input-wrap input::placeholder {
+      color: #aaa59f;
+    }
+
+    .input-wrap input:focus {
+      border-color: var(--sage);
+      box-shadow: 0 0 0 4px rgba(143, 163, 147, 0.14);
+      background: #fff;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 6px 0 22px;
+      gap: 16px;
+    }
+
+    .check {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .check input {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--sage);
+    }
+
+    .forgot {
+      color: var(--text);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .forgot:hover {
+      color: var(--sage);
+    }
+
+    .submit {
+      width: 100%;
+      height: 56px;
+      border: none;
+      border-radius: 16px;
+      background: var(--sage);
+      color: #fff;
+      font-family: 'Satoshi', sans-serif;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: background .18s ease, transform .18s ease, box-shadow .18s ease;
+      box-shadow: 0 12px 24px rgba(143, 163, 147, 0.22);
+    }
+
+    .submit:hover {
+      background: var(--sage-hover);
+      transform: translateY(-1px);
+    }
+
+    .bottom-note {
+      margin-top: 20px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .bottom-note a {
+      color: var(--text);
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .bottom-note a:hover {
+      color: var(--sage);
+    }
+
+    @media (max-width: 980px) {
+      .auth-card {
+        max-width: 560px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .auth {
+        padding: 28px 16px;
+      }
+
+      .auth-card {
+        padding: 28px 22px;
+        border-radius: 24px;
+      }
+
+      .auth-logo {
+        width: 150px;
+        margin-bottom: 26px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="visual">
+      <div class="brand">
+        <img class="brand-logo" src="/assets/glowstock-logo.svg" alt="GlowStock">
+      </div>
+
+      <div class="visual-card">
+        <div class="eyebrow">Stock beauté sans Excel</div>
+        <h1>Gérez vos produits en toute simplicité.</h1>
+        <p>
+          Suivez vos gels, vernis et consommables, anticipez vos réassorts et gardez une vue claire sur votre stock au quotidien.
+        </p>
+
+        <div class="mini-dashboard">
+          <div class="mini-top">
+            <div class="mini-title">Aperçu de votre espace</div>
+            <div class="mini-badge">En ligne</div>
+          </div>
+
+          <div class="mini-grid">
+            <div class="mini-stat">
+              <span>Produits</span>
+              <strong>428</strong>
+            </div>
+            <div class="mini-stat">
+              <span>Alertes</span>
+              <strong>5</strong>
+            </div>
+            <div class="mini-stat">
+              <span>Réf. reconnues</span>
+              <strong>92%</strong>
+            </div>
+          </div>
+
+          <div class="mini-list">
+            <div class="mini-item">
+              <div class="left">
+                <span class="dot danger"></span>
+                <span class="name">Rubber Base Nude — réf. 001259</span>
+              </div>
+              <span class="qty">0 en stock</span>
+            </div>
+            <div class="mini-item">
+              <div class="left">
+                <span class="dot warn"></span>
+                <span class="name">Gel clear 50ml — réf. VV-CLR-50</span>
+              </div>
+              <span class="qty">1 restant</span>
+            </div>
+            <div class="mini-item">
+              <div class="left">
+                <span class="dot"></span>
+                <span class="name">Vernis Bleu Pastel — réf. 001260</span>
+              </div>
+              <span class="qty">4 en stock</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="auth">
+      <div class="auth-card">
+        <img class="auth-logo" src="/assets/glowstock-logo.svg" alt="GlowStock">
+        <h2>Bon retour.</h2>
+        <p class="subtitle">Connectez-vous à votre espace GlowStock pour retrouver votre inventaire et vos alertes produit.</p>
+
+        <form>
+          <div class="field">
+            <label for="email">Email</label>
+            <div class="input-wrap">
+              <input id="email" type="email" placeholder="vous@exemple.fr" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="password">Mot de passe</label>
+            <div class="input-wrap">
+              <input id="password" type="password" placeholder="••••••••" />
+            </div>
+          </div>
+
+          <div class="row">
+            <label class="check">
+              <input type="checkbox" />
+              <span>Se souvenir de moi</span>
+            </label>
+            <a href="#" class="forgot">Mot de passe oublié ?</a>
+          </div>
+
+          <button id="validation_form" type="submit" class="submit">Se connecter</button>
+        </form>
+
+        <div class="bottom-note">
+          Pas encore de compte ? <a href="/ins/">Crée votre compte</a>
+        </div>
+      </div>
+    </section>
+  </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/socket-client.js"></script>
+    <script src="/js/error-reporter.js"></script>
+    <script src="/js/connexion.js"></script>
+</body>
+</html>
