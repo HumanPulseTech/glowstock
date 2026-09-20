@@ -42,14 +42,34 @@ public class MainActivity extends Activity {
                 insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
             return insets;
         });
-        Button options = new Button(this);
-        options.setText("GlowStock · Options");
-        options.setOnClickListener(v -> new AlertDialog.Builder(this).setItems(
-            new String[]{"Actualiser", "Ouvrir dans le navigateur"}, (dialog, which) -> {
-                if (which == 0) { errorPanel.setVisibility(View.GONE); web.setVisibility(View.VISIBLE); web.reload(); }
+        int touchSize = Math.round(48 * getResources().getDisplayMetrics().density);
+        LinearLayout toolbar = new LinearLayout(this);
+        toolbar.setGravity(android.view.Gravity.END | android.view.Gravity.CENTER_VERTICAL);
+        TextView options = new TextView(this);
+        options.setText("⋮");
+        options.setTextSize(28);
+        options.setTextColor(0xff333130);
+        options.setGravity(android.view.Gravity.CENTER);
+        options.setContentDescription("Options de l’application");
+        options.setFocusable(true);
+        android.util.TypedValue ripple = new android.util.TypedValue();
+        getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, ripple, true);
+        options.setBackgroundResource(ripple.resourceId);
+        options.setOnClickListener(v -> {
+            PopupMenu menu = new PopupMenu(this, options);
+            menu.getMenu().add(0, 0, 0, "Actualiser");
+            menu.getMenu().add(0, 1, 1, "Ouvrir dans le navigateur");
+            menu.setOnMenuItemClickListener(item -> {
+                if (item.getItemId() == 0) { errorPanel.setVisibility(View.GONE); web.setVisibility(View.VISIBLE); web.reload(); }
                 else openExternal(Uri.parse(isGlowStock(Uri.parse(web.getUrl() == null ? failedUrl : web.getUrl())) ? (web.getUrl() == null ? failedUrl : web.getUrl()) : "https://glowstock.fr/"));
-            }).show());
-        root.addView(options);
+                return true;
+            });
+            menu.show();
+        });
+        toolbar.addView(options, new LinearLayout.LayoutParams(touchSize, touchSize));
+        root.addView(toolbar, new LinearLayout.LayoutParams(-1, touchSize));
+        getWindow().setStatusBarColor(0xfffaf9f6);
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
         errorPanel = new LinearLayout(this);
         errorPanel.setOrientation(LinearLayout.VERTICAL);
         errorPanel.setPadding(32, 48, 32, 32);

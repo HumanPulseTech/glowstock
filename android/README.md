@@ -7,7 +7,7 @@ Application Android 8.0+ connectée à https://glowstock.fr/. Connexion Internet
 Depuis PowerShell : `powershell -ExecutionPolicy Bypass -File android/build.ps1`.
 Prérequis : JDK Android Studio, SDK platform android-36 et build-tools 36.0.0. Les chemins peuvent être personnalisés avec `-Sdk` et `-Java`. Aucune dépendance à télécharger.
 
-Résultat : `android/build/GlowStock-1.0.0.apk`. Transférer sur Android et autoriser l’installation depuis l’application qui ouvre le fichier.
+Résultat : `android/build/GlowStock-1.0.1.apk`. Transférer sur Android et autoriser l’installation depuis l’application qui ouvre le fichier.
 
 Le certificat local de test est conservé dans `android/signing/` (ignoré par Git). Conserver ce dossier pour signer les mises à jour compatibles. Ce certificat et son mot de passe standard sont destinés aux essais ; préparer une clé de distribution protégée avant diffusion publique ou publication Play Store.
 

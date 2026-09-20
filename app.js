@@ -318,7 +318,7 @@ app.get('/telecharger/glowstock.apk', (req, res, next) => {
     res.setHeader('X-Robots-Tag', 'noindex');
     res.setHeader('Cache-Control', 'no-cache');
     res.type('application/vnd.android.package-archive');
-    res.download(path.join(__dirname, 'downloads', 'GlowStock-1.0.0.apk'), 'GlowStock-1.0.0.apk', (error) => {
+    res.download(path.join(__dirname, 'downloads', 'GlowStock-1.0.1.apk'), 'GlowStock-1.0.1.apk', (error) => {
         if (error && !res.headersSent) next(error);
     });
 });

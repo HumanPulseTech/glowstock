@@ -27,6 +27,6 @@ $key = Join-Path $signing 'glowstock-local.jks'
 if (-not (Test-Path $key)) {
     Run "$Java\bin\keytool.exe" @('-genkeypair','-keystore',$key,'-storepass','android','-keypass','android','-alias','glowstock-local','-keyalg','RSA','-keysize','2048','-validity','10000','-dname','CN=GlowStock Local Test,O=GlowStock,C=FR')
 }
-Run "$tools\apksigner.bat" @('sign','--ks',$key,'--ks-key-alias','glowstock-local','--ks-pass','pass:android','--key-pass','pass:android','--out',"$build\GlowStock-1.0.0.apk","$build\aligned.apk")
-Run "$tools\apksigner.bat" @('verify','--verbose',"$build\GlowStock-1.0.0.apk")
-Write-Output "APK: $build\GlowStock-1.0.0.apk"
+Run "$tools\apksigner.bat" @('sign','--ks',$key,'--ks-key-alias','glowstock-local','--ks-pass','pass:android','--key-pass','pass:android','--out',"$build\GlowStock-1.0.1.apk","$build\aligned.apk")
+Run "$tools\apksigner.bat" @('verify','--verbose',"$build\GlowStock-1.0.1.apk")
+Write-Output "APK: $build\GlowStock-1.0.1.apk"
