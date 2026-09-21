@@ -26,6 +26,7 @@ const { allowedOrigin, allowedSocketRequest, createLimiter, validateSession } = 
 const limitRequest = createLimiter();
 const { refreshSessionActivity } = require('./security/session-activity.js');
 const { createSocketGuard } = require('./security/socket-guard.js');
+const caisse = require('./integrations/caisse.js');
 const trustProxy = process.env.TRUST_PROXY === undefined
     ? isProduction
     : ['1', 'true', 'yes'].includes(String(process.env.TRUST_PROXY).toLowerCase());
@@ -185,6 +186,7 @@ function requireAuth(req, res, next) {
 // HTTP authentication lets regeneration issue a fresh session cookie.
 app.post('/api/auth/login', requireSameOrigin, express.json({ limit: '4kb' }), authEndpoint('login', require('./Miku/function/connect.js'), req => req.body));
 app.post('/api/auth/verify', requireSameOrigin, express.json({ limit: '1kb' }), authEndpoint('signup', require('./Miku/function/validMail.js'), req => req.body?.token));
+app.use('/api/caisse', caisse.createCaisseRouter({ getPool, hasPermission, getSubscriptionStatus, requireSameOrigin, limitRequest }));
 
 function requireApiAuth(req, res, next) {
     if (!req.session?.userId) return res.status(401).json({ error: 'Session expirée.' });
@@ -425,6 +427,10 @@ app.get('/dashboard/PAO/', requireAuth, requirePermission('pao'), requireSubscri
 
 app.get('/dashboard/planning/', requireAuth, requirePermission('dashboard'), requireSubscription('full'), requireFeature('planning'), (req, res) => {
     res.sendFile(path.join(__dirname, 'template/planning.html'));
+});
+
+app.get('/dashboard/caisse/', requireAuth, caisse.requireCaisseAccess({ hasPermission, getSubscriptionStatus }), (req, res) => {
+    res.sendFile(path.join(__dirname, 'template/caisse.html'));
 });
 
 app.get('/dashboard/webcam/', requireAuth, requirePermission('inventory'), requireSubscription('full'), requireFeature('scanner'), (req, res) => {

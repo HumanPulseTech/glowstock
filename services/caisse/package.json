@@ -1,0 +1,9 @@
+{
+  "name": "glowstock-caisse",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Service caisse isolé — pilote de simulation, sans encaissement réel",
+  "engines": { "node": "22.x" },
+  "scripts": { "start": "node src/server.js", "test": "node --test test/*.test.js" },
+  "dependencies": { "express": "4.22.3", "mysql2": "3.24.4" }
+}

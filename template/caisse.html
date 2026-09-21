@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>GlowStock — Caisse pilote</title>
+  <link rel="stylesheet" href="/css/caisse.css">
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="/dashboard/" aria-label="Retour à GlowStock"><img src="/assets/glowstock-logo.svg" alt="GlowStock"></a>
+    <nav aria-label="Navigation principale"><a href="/dashboard/">Tableau de bord</a><a href="/dashboard/planning/">Planning</a><a href="/dashboard/caisse/" aria-current="page">Caisse</a></nav>
+    <span class="pilot-badge"><span></span> Pilote · simulation</span>
+  </header>
+  <main>
+    <section class="page-heading"><div><p class="eyebrow" id="today_label">VOTRE ESPACE DE VENTE</p><h1>Chaque détail compte.</h1><p>Le rendez-vous est prêt. Ajoutez la petite attention en plus.</p></div><button id="appointments_button" class="button secondary" type="button">Changer de cliente <span aria-hidden="true">↗</span></button></section>
+    <p class="notice">Mode test : aucun paiement enregistré et aucun stock réel modifié. Cette version n’a pas de valeur fiscale.</p>
+    <p id="message" class="message" role="status" aria-live="polite"></p>
+    <div class="workspace" aria-busy="true" id="workspace">
+      <section class="catalog-panel" aria-labelledby="catalog_title">
+        <div class="section-heading"><div><p class="eyebrow">UNE ENVIE EN PLUS ?</p><h2 id="catalog_title">Prestations & produits</h2></div><button class="icon-button" type="button" id="new_catalog" aria-label="Créer un tarif" title="Créer un tarif">+</button></div>
+        <label class="search"><span aria-hidden="true">⌕</span><input type="search" id="search" placeholder="Rechercher un soin, un produit…" autocomplete="off"><kbd>/</kbd></label>
+        <div class="tabs" role="group" aria-label="Filtrer le catalogue"><button type="button" data-kind="all" aria-pressed="true">Tout</button><button type="button" data-kind="service" aria-pressed="false">Prestations</button><button type="button" data-kind="product" aria-pressed="false">Produits</button></div>
+        <div id="catalog" class="catalog-grid"></div>
+        <div class="catalog-help"><span aria-hidden="true">✧</span><p><strong>Un geste suffit.</strong> Touchez une carte pour l’ajouter au ticket. Les tarifs restent modifiables avant validation.</p></div>
+      </section>
+      <section class="ticket-panel" aria-labelledby="ticket_title" id="ticket_panel">
+        <header class="ticket-heading"><div><p class="eyebrow">LE RENDEZ-VOUS DU MOMENT</p><h2 id="ticket_title">Votre ticket</h2></div><span class="draft-badge" id="draft_status">Brouillon</span></header>
+        <div id="client_card" class="client-card"><div class="avatar">—</div><div><strong>Choisissez une cliente</strong><p>Ou commencez une vente sans rendez-vous.</p></div></div>
+        <div class="ticket-columns"><span>DÉSIGNATION</span><span>TOTAL</span></div>
+        <div class="ticket-lines" id="ticket_lines"><p class="empty">Chargement du ticket…</p></div>
+        <div class="ticket-bottom"><div class="summary-row"><span>Articles / prestations</span><span id="line_count">0</span></div><div class="summary-row"><span>Dont TVA</span><span id="tax_total">—</span></div><div class="total-row"><span>Total TTC</span><strong id="grand_total">0,00 €</strong></div><button id="checkout" class="button primary checkout" type="button" disabled>Tester la validation <span aria-hidden="true">→</span></button><p class="ticket-footnote" id="ticket_note">Brouillon enregistré dans le service caisse.</p><button id="new_sale" class="text-button" type="button">+ Vente sans rendez-vous</button></div>
+      </section>
+    </div>
+  </main>
+  <button id="mobile_cart" class="mobile-cart" type="button">Voir le ticket <strong id="mobile_total">0,00 €</strong> <span>↓</span></button>
+
+  <dialog id="appointments_dialog" aria-labelledby="appointments_title"><form method="dialog" class="dialog-header"><div><p class="eyebrow">AUJOURD’HUI</p><h2 id="appointments_title">À qui le tour ?</h2></div><button aria-label="Fermer" class="icon-button">×</button></form><div id="appointments_list" class="appointment-list"></div><h3>Tickets en attente</h3><div id="drafts_list" class="appointment-list"></div><button class="button secondary wide" id="walk_in" type="button">Vente sans rendez-vous</button></dialog>
+
+  <dialog id="catalog_dialog" aria-labelledby="catalog_dialog_title"><form method="dialog" class="dialog-header"><h2 id="catalog_dialog_title">Un nouveau tarif</h2><button aria-label="Fermer" class="icon-button">×</button></form><form id="catalog_form" class="form-grid"><label>Type<select id="catalog_kind"><option value="service">Prestation</option><option value="product">Produit de mon inventaire</option></select></label><label id="product_label" hidden>Produit<select id="catalog_product"></select></label><label id="name_label">Nom de la prestation<input id="catalog_name" maxlength="150" required placeholder="Ex. Pose complète"></label><div class="form-row"><label>Prix TTC (€)<input id="catalog_price" type="text" inputmode="decimal" placeholder="0,00" required></label><label>TVA<select id="catalog_tax" required><option value="">À définir</option><option value="exempt">Exonération / franchise</option><option value="0">0 %</option><option value="550">5,5 %</option><option value="1000">10 %</option><option value="2000">20 %</option></select></label></div><p class="small">Choisissez votre régime réel. Aucun taux n’est appliqué automatiquement.</p><button class="button primary wide" type="submit">Enregistrer le tarif</button><p class="form-error" role="alert"></p></form></dialog>
+
+  <dialog id="price_dialog" aria-labelledby="price_title"><form method="dialog" class="dialog-header"><h2 id="price_title">Ajuster le prix</h2><button aria-label="Fermer" class="icon-button">×</button></form><form id="price_form" class="form-grid"><p id="price_item"></p><label>Prix unitaire TTC (€)<input id="line_price" inputmode="decimal" required></label><label>TVA<select id="line_tax" required><option value="">À définir</option><option value="exempt">Exonération / franchise</option><option value="0">0 %</option><option value="550">5,5 %</option><option value="1000">10 %</option><option value="2000">20 %</option></select></label><p class="small">Ce changement concerne uniquement le brouillon actuel.</p><button class="button primary wide" type="submit">Appliquer au ticket</button><p class="form-error" role="alert"></p></form></dialog>
+
+  <dialog id="payment_dialog" aria-labelledby="payment_title"><form method="dialog" class="dialog-header"><div><p class="eyebrow">SIMULATION UNIQUEMENT</p><h2 id="payment_title">Dernière étape</h2></div><button aria-label="Fermer" class="icon-button">×</button></form><p class="payment-total" id="payment_total"></p><form id="payment_form" class="form-grid"><fieldset><legend>Mode de règlement simulé</legend><div class="payment-methods"><label><input type="radio" name="method" value="card" checked> Carte</label><label><input type="radio" name="method" value="cash"> Espèces</label><label><input type="radio" name="method" value="other"> Autre</label></div></fieldset><label id="cash_label" hidden>Montant reçu (€)<input id="cash_amount" inputmode="decimal"></label><p id="change_due" class="small"></p><p class="notice">Le ticket sera figé en simulation. Aucun encaissement réel ni mouvement de stock ne sera effectué.</p><button class="button primary wide" type="submit">Confirmer la simulation</button><p class="form-error" role="alert"></p></form></dialog>
+  <script src="/js/caisse.js" defer></script>
+</body>
+</html>

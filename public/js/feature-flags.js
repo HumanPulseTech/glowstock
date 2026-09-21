@@ -1,6 +1,13 @@
 (() => {
   const socket = window.glowstockSocket || (typeof io === 'function' ? (window.glowstockSocket = io()) : null);
   if (!socket) return;
+  fetch('/api/caisse/status').then(r => r.ok ? r.json() : null).then(status => {
+    const anchor = document.querySelector('.sidebar .nav-item[data-feature="tickets"]');
+    if (!status?.enabled || !anchor || document.querySelector('[data-caisse-link]')) return;
+    const link = document.createElement('a');
+    link.className = 'nav-item'; link.href = '/dashboard/caisse/'; link.dataset.caisseLink = 'true';
+    link.textContent = 'Caisse · pilote'; anchor.before(link);
+  }).catch(() => {});
 
   function applyFeatureFlags(flags = {}) {
     ensurePlanningLink();
