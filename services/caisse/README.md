@@ -4,7 +4,7 @@
 
 ## Ce qui fonctionne
 
-Catalogue de produits et prestations, recherche, filtres, ticket associé au rendez-vous du jour, ajout et modification des lignes, prix et TVA explicitement choisis, simulation carte/espèces/autre, rendu de monnaie, ticket figé après simulation. En cas de rendez-vous ambigu, choix manuel plutôt qu'ouverture arbitraire. La connexion redirige vers la caisse uniquement lorsque le pilote est activé et le compte autorisé.
+Catalogue de produits et prestations, recherche, filtres, ticket associé au rendez-vous du jour, ajout et modification des lignes, prix et TVA explicitement choisis, simulation carte/espèces/autre, rendu de monnaie, ticket figé après simulation. En cas de rendez-vous ambigu, choix manuel plutôt qu'ouverture arbitraire. La connexion ouvre toujours le tableau de bord. La caisse s'ouvre depuis le menu pour les administrateurs autorisés lorsque le pilote est activé.
 
 Les prix de vente n'existent pas dans l'inventaire actuel : ils se définissent dans ce catalogue. Une prestation du planning ne reçoit un prix automatiquement que si son nom correspond exactement à un tarif unique. Sinon, la validation est bloquée jusqu'à confirmation du prix et de la TVA. Modifier un prix dans le ticket ne modifie pas le catalogue.
 
@@ -21,7 +21,7 @@ Le navigateur appelle uniquement GlowStock. GlowStock transmet une requête sign
 
 Cette séparation réduit le couplage des déploiements, mais ne rend pas le serveur physique redondant : sa panne arrête les deux applications. Les sauvegardes doivent être hors de ce serveur.
 
-Le modèle pilote suit le modèle existant : **un compte utilisateur = son planning et son stock**. Un institut partagé entre plusieurs salariées, avec rôles de caissière/responsable et sessions de caisse, n'est pas implémenté. L'accès pilote est réservé aux administrateurs : il nécessite `access_admin`, `manage_products` et un abonnement de niveau `full`. Ces droits sont relus côté serveur sur chaque accès à la page et à l'API ; le menu et la redirection de connexion utilisent le même contrôle. Un rôle annoncé par le navigateur ou conservé dans une ancienne session ne suffit pas. Tous les comptes possédant ces droits sont administrateurs au sens de ce contrôle.
+Le modèle pilote suit le modèle existant : **un compte utilisateur = son planning et son stock**. Un institut partagé entre plusieurs salariées, avec rôles de caissière/responsable et sessions de caisse, n'est pas implémenté. L'accès pilote est réservé aux administrateurs : il nécessite `access_admin`, `manage_products` et un abonnement de niveau `full`. Ces droits sont relus côté serveur sur chaque accès à la page et à l'API ; le menu utilise le même contrôle. Un rôle annoncé par le navigateur ou conservé dans une ancienne session ne suffit pas. Tous les comptes possédant ces droits sont administrateurs au sens de ce contrôle.
 
 ## Essayer sans toucher à la production
 
