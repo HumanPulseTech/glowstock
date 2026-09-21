@@ -44,6 +44,19 @@ async function main() {
         await page.locator('#cash_amount').fill('50');
         await page.getByRole('button', { name: 'Confirmer la simulation' }).click();
         await page.waitForFunction(() => document.querySelector('#ticket_note').textContent.includes('5,00'));
+        // The real inventory read remains visible even when the cashier service is unavailable.
+        await page.route('**/api/caisse/workspace', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"Service indisponible"}' }));
+        await page.reload();
+        await page.waitForFunction(() => document.querySelector('#message').textContent.includes('Service caisse indisponible'));
+        assert.match(await page.locator('#inventory_status').innerText(), /2 produit/);
+        assert.match(await page.locator('#catalog').innerText(), /Huile cuticules/);
+        assert.match(await page.locator('#catalog').innerText(), /Stock : 12/);
+        assert.equal(await page.locator('#new_sale').isDisabled(), true);
+        assert.equal(await page.locator('#new_catalog').isDisabled(), true);
+        assert.equal(await page.locator('#checkout').isDisabled(), true);
+        await page.locator('#search').fill('Crème');
+        assert.equal(await page.locator('#catalog .item-card').count(), 1);
+        assert.equal(await page.locator('#catalog .item-card').isDisabled(), true);
         assert.deepEqual(errors, []);
         console.log('UI desktop/mobile: prefill, product, totals, payment reset, freeze, stock unchanged, cash change and overflow checks passed.');
     } finally { if (browser) await browser.close(); await demo.close(); }

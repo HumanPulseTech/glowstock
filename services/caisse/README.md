@@ -8,6 +8,8 @@ Catalogue de produits et prestations, recherche, filtres, ticket associé au ren
 
 Les prix de vente n'existent pas dans l'inventaire actuel : ils se définissent dans ce catalogue. Une prestation du planning ne reçoit un prix automatiquement que si son nom correspond exactement à un tarif unique. Sinon, la validation est bloquée jusqu'à confirmation du prix et de la TVA. Modifier un prix dans le ticket ne modifie pas le catalogue.
 
+La caisse lit également l'inventaire directement via `GET /api/caisse/inventory`, réservé aux administrateurs autorisés et filtré sur l'identité en session. Les produits sans tarif s'affichent aussi, avec leur stock et référence. Le bouton Actualiser relit les données du compte. Si le service Caisse ne répond pas, les produits restent consultables en lecture seule : aucun ticket ni tarif ne peut alors être créé/modifié. Aucune donnée de démonstration ou d'un autre compte n'est substituée. Aucun changement de schéma n'est nécessaire pour cette lecture.
+
 ## Architecture retenue
 
 Un serveur physique peut héberger deux applications déployables indépendamment :

@@ -16,6 +16,7 @@ async function startDemo(port = 0) {
     const service = createApp({ store, secret }).listen(0, '127.0.0.1'); await new Promise(resolve => service.once('listening', resolve));
     const app = express(); app.use(express.json());
     app.get('/api/caisse/status', (req, res) => res.json({ enabled: true, mode: 'simulation' }));
+    app.get('/api/caisse/inventory', (req, res) => res.json({ products: context.products, source: 'account-inventory' }));
     app.post('/api/caisse/:command', async (req, res) => {
         try {
             const route = `/v1/${encodeURIComponent(req.params.command)}`, body = JSON.stringify({ context, input: req.body });

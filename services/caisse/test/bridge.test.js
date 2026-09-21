@@ -33,6 +33,7 @@ test('bridge enforces flag/session/permission/origin and ignores browser tenant/
     assert.equal((await send()).status, 403); permission = true;
     admin = false;
     assert.equal((await (await fetch(base + '/status')).json()).enabled, false);
+    assert.equal((await fetch(base + '/inventory')).status, 403);
     assert.equal((await fetch(`http://127.0.0.1:${server.address().port}/dashboard/caisse/`)).status, 403);
     for (const command of ['workspace', 'catalog', 'open', 'add', 'line', 'simulate']) {
         const denied = await fetch(base + '/' + command, { method: 'POST', headers: { origin: 'https://test.example', 'content-type': 'application/json', 'x-caisse-tenant': '1' }, body: '{"role":"admin"}' });
@@ -50,6 +51,25 @@ test('bridge enforces flag/session/permission/origin and ignores browser tenant/
     admin = false; assert.equal((await send()).status, 403); admin = true;
     process.env.CAISSE_ALLOW_PRIVATE_HTTP = 'false';
     assert.equal((await send()).status, 503); assert.equal(requests, 1);
+});
+test('inventory reads only the signed-in account and works without a cashier service or planning table', async t => {
+    const previous = process.env.CAISSE_ENABLED; process.env.CAISSE_ENABLED = 'true';
+    t.after(() => { if (previous === undefined) delete process.env.CAISSE_ENABLED; else process.env.CAISSE_ENABLED = previous; });
+    let account = 42; const calls = [];
+    const app = express(); app.use((req, res, next) => { req.session = { userId: account }; next(); });
+    app.use('/api/caisse', createCaisseRouter({ hasPermission: async () => true, getSubscriptionStatus: async () => ({ level: 'full' }),
+        requireSameOrigin: (req, res, next) => next(), limitRequest: () => true,
+        getPool: async () => ({ query: async (sql, args) => {
+            calls.push({ sql, args }); assert.match(sql, /^SELECT .* FROM produits WHERE id_user = \?/);
+            return [{ id: args[0] + 100, nom: `Produit compte ${args[0]}`, ref_fournisseur: '001259', quantite: 7 }];
+        } }) }));
+    const server = app.listen(0, '127.0.0.1'); await new Promise(r => server.once('listening', r));
+    t.after(() => new Promise(r => server.close(r)));
+    const base = `http://127.0.0.1:${server.address().port}/api/caisse/inventory?userId=999`;
+    const response = await fetch(base); assert.equal(response.status, 200); assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.deepEqual((await response.json()).products, [{ id: 142, name: 'Produit compte 42', reference: '001259', quantity: 7 }]);
+    account = 43; assert.equal((await (await fetch(base)).json()).products[0].id, 143);
+    assert.deepEqual(calls.map(c => c.args), [[42], [43]]);
 });
 test('bridge scopes both source queries to authenticated account and excludes notes', async () => {
     const calls = [];

@@ -2,7 +2,7 @@
     'use strict';
     const $ = id => document.getElementById(id);
     const money = cents => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(cents / 100);
-    const state = { workspace: null, draft: null, kind: 'all', query: '', busy: false, lineId: null, paymentKey: null, uncertain: false };
+    const state = { workspace: null, draft: null, kind: 'all', query: '', busy: false, lineId: null, paymentKey: null, uncertain: false, inventoryOnly: true };
     const node = (tag, className, content) => { const element = document.createElement(tag); if (className) element.className = className; if (content !== undefined) element.textContent = content; return element; };
     const button = (text, className, action, label) => { const b = node('button', className, text); b.type = 'button'; if (label) b.setAttribute('aria-label', label); b.disabled = state.busy; b.onclick = action; return b; };
     function message(text = '', error = false) { $('message').textContent = text; $('message').classList.toggle('error', error); }
@@ -19,8 +19,18 @@
         if (!response.ok) { const error = new Error(data.error || 'Action impossible.'); error.status = response.status; throw error; }
         return data;
     }
+    async function loadInventory() {
+        const response = await fetch('/api/caisse/inventory', { cache: 'no-store', signal: AbortSignal.timeout(10000) });
+        if (response.status === 401) window.location.assign('/connexion/');
+        const data = await response.json();
+        if (!response.ok) { $('inventory_status').textContent = data.error || 'Inventaire indisponible.'; throw Object.assign(new Error(data.error || 'Inventaire indisponible.'), { status: response.status }); }
+        state.workspace ||= { products: [], catalog: [], drafts: [], appointments: [] };
+        state.workspace.products = data.products;
+        render();
+    }
     async function load() {
-        state.workspace = await api('workspace');
+        try { state.workspace = await api('workspace'); state.inventoryOnly = false; }
+        catch (error) { state.inventoryOnly = true; render(); throw error; }
         if (state.draft) state.draft = state.workspace.drafts.find(d => d.id === state.draft.id) || null;
         state.uncertain = false;
         $('workspace').setAttribute('aria-busy', 'false');
@@ -32,32 +42,36 @@
         state.busy = true;
         document.querySelectorAll('button').forEach(b => { b.disabled = true; });
         if (form) form.querySelector('.form-error').textContent = '';
-        try { await work(); message('Enregistré dans la caisse pilote.'); }
+        try { await work(); message('Données du compte à jour dans la caisse pilote.'); }
         catch (error) {
             message(error.message, true); if (form) form.querySelector('.form-error').textContent = error.message;
             if (!error.status || error.status === 409 || error.status >= 500) {
                 state.uncertain = true;
-                try { await load(); } catch { message('Connexion interrompue. Recharge la page avant de poursuivre; le brouillon est conservé côté serveur.', true); }
+                try { await load(); } catch { message('Service caisse indisponible. L’inventaire chargé reste consultable ; la création et la modification des tickets sont bloquées.', true); }
             }
         } finally { state.busy = false; document.querySelectorAll('button').forEach(b => { b.disabled = false; }); render(); }
     }
     async function openDraft(appointmentId = null) {
+        if (state.inventoryOnly) throw new Error('Le service caisse doit être disponible pour créer un ticket.');
         state.draft = await api('open', { appointmentId, key: crypto.randomUUID() });
         $('appointments_dialog').close(); await load();
     }
     async function mutate(command, input) {
-        if (!state.draft || state.uncertain) throw new Error('Recharge le ticket avant de continuer.');
+        if (!state.draft || state.uncertain || state.inventoryOnly) throw new Error('Recharge le ticket avant de continuer.');
         state.draft = await api(command, { ...input, draftId: state.draft.id, version: state.draft.version });
         await load();
     }
     function render() {
         if (!state.workspace) return;
         renderCatalog(); renderTicket(); renderAppointments();
+        const count = state.workspace.products.length;
+        $('inventory_status').textContent = `${count} produit(s) de votre inventaire${state.inventoryOnly ? ' · consultation seule, service caisse indisponible ou en connexion' : ' · tarifs de vente à définir si nécessaire'}`;
+        for (const id of ['new_catalog', 'appointments_button', 'new_sale', 'walk_in']) $(id).disabled = state.busy || state.inventoryOnly;
     }
     function renderCatalog() {
         const list = $('catalog'); list.replaceChildren();
         const productsWithoutPrice = state.workspace.products.filter(p => !state.workspace.catalog.some(c => c.productId === p.id)).map(p => ({ id: `product-${p.id}`, productId: p.id, kind: 'product', name: p.name, unitCents: null }));
-        const entries = [...state.workspace.catalog, ...productsWithoutPrice].filter(item => (state.kind === 'all' || item.kind === state.kind) && item.name.toLocaleLowerCase('fr').includes(state.query.toLocaleLowerCase('fr')));
+        const entries = [...state.workspace.catalog, ...productsWithoutPrice].filter(item => (state.kind === 'all' || item.kind === state.kind) && `${item.name} ${state.workspace.products.find(p => p.id === item.productId)?.reference || ''}`.toLocaleLowerCase('fr').includes(state.query.toLocaleLowerCase('fr')));
         for (const item of entries) {
             const card = button('', 'item-card', () => {
                 if (item.unitCents === null) return openCatalog(item.productId);
@@ -65,12 +79,15 @@
                 void action(() => mutate('add', { catalogId: item.id }));
             }, item.unitCents === null ? `Définir le tarif de ${item.name}` : `Ajouter ${item.name}, ${money(item.unitCents)}`);
             card.append(node('span', 'item-art', item.kind === 'product' ? '◒' : '✧'), node('strong', '', item.name), node('span', 'item-kind', item.kind === 'service' ? 'Prestation' : 'Produit à emporter'), node('span', item.unitCents === null ? 'item-price missing-price' : 'item-price', item.unitCents === null ? 'Définir le tarif' : money(item.unitCents)), node('span', 'add-sign', '+'));
+            const product = state.workspace.products.find(p => p.id === item.productId);
+            if (product) card.append(node('span', 'inventory-detail', `Stock : ${product.quantity}${product.reference ? ' · Réf. ' + product.reference : ''}`));
+            if (state.inventoryOnly) card.disabled = true;
             list.append(card);
         }
         if (!entries.length) list.append(node('p', 'empty', state.query ? 'Aucun résultat. Essayez un autre nom.' : 'Votre catalogue est prêt à accueillir vos prestations. Utilisez + pour créer votre premier tarif.'));
     }
     function renderTicket() {
-        const draft = state.draft, editable = draft?.status === 'draft' && !state.uncertain;
+        const draft = state.draft, editable = draft?.status === 'draft' && !state.uncertain && !state.inventoryOnly;
         const client = $('client_card'); client.replaceChildren();
         const label = draft?.clientName || 'Choisissez une cliente';
         client.append(node('div', 'avatar', draft ? label.split(/\s+/).slice(0, 2).map(s => s[0]).join('') : '—'));
@@ -127,6 +144,7 @@
     $('search').addEventListener('input', event => { state.query = event.target.value; renderCatalog(); });
     document.querySelectorAll('[data-kind]').forEach(b => b.onclick = () => { state.kind = b.dataset.kind; document.querySelectorAll('[data-kind]').forEach(tab => tab.setAttribute('aria-pressed', String(tab === b))); renderCatalog(); });
     $('new_catalog').onclick = () => state.workspace && openCatalog(); $('catalog_kind').onchange = updateCatalogType;
+    $('refresh_inventory').onclick = () => action(async () => { await loadInventory(); await load(); });
     $('appointments_button').onclick = () => state.workspace && $('appointments_dialog').showModal();
     $('new_sale').onclick = $('walk_in').onclick = () => state.workspace && action(() => openDraft());
     $('mobile_cart').onclick = () => $('ticket_panel').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion:reduce)').matches ? 'instant' : 'smooth' });
@@ -151,6 +169,7 @@
         await mutate('simulate', { key: state.paymentKey, method, tenderedCents: method === 'cash' ? cents($('cash_amount').value) : undefined }); $('payment_dialog').close();
     }, event.currentTarget); };
     void action(async () => {
+        await loadInventory();
         await load();
         const requested = new URLSearchParams(location.search).get('appointment');
         const id = requested ? Number(requested) : state.workspace.recommendedAppointmentId;

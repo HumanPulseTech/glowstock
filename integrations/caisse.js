@@ -22,16 +22,21 @@ function parisClock(now = new Date()) {
     const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now).map(p => [p.type, p.value]));
     return { day: `${parts.year}-${parts.month}-${parts.day}`, minuteNow: Number(parts.hour) * 60 + Number(parts.minute) };
 }
+async function loadProducts(getPool, userId) {
+    const products = await (await getPool()).query('SELECT id, nom, ref_fournisseur, quantite FROM produits WHERE id_user = ? ORDER BY nom LIMIT 1001', [userId]);
+    if (products.length > 1000) throw new Error('CAISSE_PILOT_LIMIT');
+    return products.map(p => ({ id: Number(p.id), name: p.nom, reference: p.ref_fournisseur, quantity: Number(p.quantite) }));
+}
 async function loadContext(getPool, userId) {
     const pool = await getPool(), clock = parisClock();
     const [products, appointments] = await Promise.all([
-        pool.query('SELECT id, nom, ref_fournisseur, quantite FROM produits WHERE id_user = ? ORDER BY nom LIMIT 1001', [userId]),
+        loadProducts(getPool, userId),
         pool.query("SELECT id, client_name, service_name, TIME_FORMAT(start_time, '%H:%i') AS starts, TIME_FORMAT(end_time, '%H:%i') AS ends FROM planning_entries WHERE id_user = ? AND appointment_date = ? ORDER BY start_time LIMIT 201", [userId, clock.day])
     ]);
     if (products.length > 1000 || appointments.length > 200) throw new Error('CAISSE_PILOT_LIMIT');
     const minute = time => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
     return { ...clock,
-        products: products.map(p => ({ id: Number(p.id), name: p.nom, reference: p.ref_fournisseur, quantity: Number(p.quantite) })),
+        products,
         appointments: appointments.map(a => ({ id: Number(a.id), clientName: a.client_name, serviceName: a.service_name || '', startTime: a.starts,
             endTime: a.ends, startMinute: minute(a.starts), endMinute: minute(a.ends) })) };
 }
@@ -48,6 +53,12 @@ function createCaisseRouter({ getPool, hasPermission, getSubscriptionStatus, req
             if (!limitRequest(`caisse:${req.session.userId}`, 120, 60000)) return res.status(429).json({ error: 'Trop de demandes. Réessaie dans un instant.' });
             next();
         } catch { res.status(503).json({ error: 'Caisse temporairement indisponible.' }); }
+    });
+    // Read the authenticated account's inventory without requiring the separate cashier service.
+    router.get('/inventory', async (req, res) => {
+        res.set('Cache-Control', 'no-store');
+        try { res.json({ products: await loadProducts(getPool, req.session.userId), source: 'account-inventory' }); }
+        catch (error) { res.status(503).json({ error: error.message === 'CAISSE_PILOT_LIMIT' ? 'Cet inventaire dépasse la limite de 1 000 produits du pilote.' : 'Impossible de lire l’inventaire de ton compte. Réessaie dans un instant.' }); }
     });
     router.post('/:command', requireSameOrigin, express.json({ limit: '24kb' }), async (req, res) => {
         if (!['workspace', 'catalog', 'open', 'add', 'line', 'simulate'].includes(req.params.command)) return res.sendStatus(404);
@@ -68,4 +79,4 @@ function createCaisseRouter({ getPool, hasPermission, getSubscriptionStatus, req
     });
     return router;
 }
-module.exports = { createCaisseRouter, parisClock, loadContext, enabled, hasCaisseAccess, requireCaisseAccess };
+module.exports = { createCaisseRouter, parisClock, loadContext, loadProducts, enabled, hasCaisseAccess, requireCaisseAccess };
