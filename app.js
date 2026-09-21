@@ -22,6 +22,10 @@ function getPublicUrl() {
     }
 }
 const publicUrl = getPublicUrl();
+const { allowedOrigin, allowedSocketRequest, createLimiter, validateSession } = require('./security/runtime.js');
+const limitRequest = createLimiter();
+const { refreshSessionActivity } = require('./security/session-activity.js');
+const { createSocketGuard } = require('./security/socket-guard.js');
 const trustProxy = process.env.TRUST_PROXY === undefined
     ? isProduction
     : ['1', 'true', 'yes'].includes(String(process.env.TRUST_PROXY).toLowerCase());
@@ -87,9 +91,11 @@ if (trustProxy) app.set('trust proxy', 1);
 app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    if (isProduction) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
+    if (!/\.(?:css|js|svg|png|jpe?g|woff2?|ico)$/i.test(req.path)) res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Permissions-Policy', 'camera=(self), microphone=()');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' https://images.unsplash.com data:; style-src 'self' 'unsafe-inline' https://api.fontshare.com; font-src 'self' https://api.fontshare.com; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com; connect-src 'self' wss: ws:");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' https://images.unsplash.com data:; style-src 'self' 'unsafe-inline' https://api.fontshare.com; font-src 'self' https://api.fontshare.com; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com; connect-src 'self'; media-src 'self' blob:");
     // Les espaces connectés, les APIs et les pages de compte n'apportent aucune valeur dans les résultats de recherche.
     if (/^\/(?:api(?:\/|$)|connexion(?:\/|$)|ins(?:\/|$)|dashboard(?:\/|$)|admin(?:\/|$)|ticket(?:\/|$)|parametres(?:\/|$)|abonnement-expire(?:\/|$)|verif(?:\/|$)|conditions-utilisation(?:\/|$)|politique-confidentialite(?:\/|$)|mentions-legales(?:\/|$))/.test(req.path)) {
         res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
@@ -97,18 +103,46 @@ app.use((req, res, next) => {
     next();
 });
 
+const sessionStore = new MySQLStore({
+    host: process.env.DB_HOST || 'localhost', user: process.env.DB_USER || 'root', password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'glowstock', createDatabaseTable: true
+});
 const sessionMiddleware = session({
-    name: 'glowstock.sid', secret: process.env.SESSION_SECRET, resave: false, saveUninitialized: true,
+    name: isProduction ? '__Host-glowstock.sid' : 'glowstock.sid', secret: process.env.SESSION_SECRET, resave: false, saveUninitialized: false,
     proxy: trustProxy,
-    store: new MySQLStore({
-        host: process.env.DB_HOST || 'localhost', user: process.env.DB_USER || 'root', password: process.env.DB_PASSWORD || '',
-        database: process.env.DB_NAME || 'glowstock', createDatabaseTable: true
-    }),
-    // "auto" suit le HTTPS public du proxy et reste compatible avec un environnement de test HTTP.
-    cookie: { httpOnly: true, sameSite: 'lax', secure: isProduction ? 'auto' : false, maxAge: 1000 * 60 * 60 * 8 }
+    store: sessionStore,
+    // Production requires HTTPS and a correctly configured trusted reverse proxy.
+    cookie: { httpOnly: true, sameSite: 'lax', secure: isProduction || useDevHttps, maxAge: 1000 * 60 * 60 * 8 }
 });
 app.use(sessionMiddleware);
 
+app.use(async (req, res, next) => {
+    if (!req.session?.userId || /\.(?:css|js|svg|png|jpe?g|woff2?|ico|apk)$/i.test(req.path)) return next();
+    try {
+        if (!(await validateSession(req.session, getPool))) return req.session.destroy(error => error ? next(error) : next());
+        if (!(await refreshSessionActivity(sessionStore, req.sessionID))) return req.session.destroy(error => error ? next(error) : next());
+        next();
+    } catch (error) { next(error); }
+});
+
+function requireSameOrigin(req, res, next) {
+    const origin = isProduction ? publicUrl : (process.env.PUBLIC_URL || `${useDevHttps ? 'https' : 'http'}://localhost:${port}`);
+    if (!allowedOrigin(req.get('origin'), origin)) return res.status(403).json({ error: 'Origine refusée.' });
+    next();
+}
+function authEndpoint(feature, handler, input) {
+    return async (req, res, next) => {
+        try {
+            if (!limitRequest(`auth:${feature}:${req.ip}`, 10, 15 * 60 * 1000)) return res.status(429).json({ error: 'Trop de tentatives. Réessayez plus tard.' });
+            if (!(await isFeatureEnabled(feature))) return res.status(503).json({ error: 'Fonction temporairement indisponible.' });
+            await handler(input(req), { request: req, id: req.requestId, emit: (event, result) => {
+                if (res.headersSent) return;
+                if (event === 'connection ac') res.json({ ok: true, ...result });
+                else res.status(400).json({ error: result });
+            } });
+        } catch (error) { next(error); }
+    };
+}
 app.use((req, res, next) => {
     const requestId = randomUUID();
     const startedAt = Date.now();
@@ -147,6 +181,10 @@ function requireAuth(req, res, next) {
     }
     next();
 }
+
+// HTTP authentication lets regeneration issue a fresh session cookie.
+app.post('/api/auth/login', requireSameOrigin, express.json({ limit: '4kb' }), authEndpoint('login', require('./Miku/function/connect.js'), req => req.body));
+app.post('/api/auth/verify', requireSameOrigin, express.json({ limit: '1kb' }), authEndpoint('signup', require('./Miku/function/validMail.js'), req => req.body?.token));
 
 function requireApiAuth(req, res, next) {
     if (!req.session?.userId) return res.status(401).json({ error: 'Session expirée.' });
@@ -229,19 +267,18 @@ void serverLogger.info('server.functions.loaded', `${Object.keys(miku).length} f
  * @type {Socket}
  */
 
-const io = require('socket.io')(http);
+const io = require('socket.io')(http, {
+    maxHttpBufferSize: 256 * 1024,
+    allowRequest: (req, done) => {
+        const origin = isProduction ? publicUrl : (process.env.PUBLIC_URL || `${useDevHttps ? 'https' : 'http'}://localhost:${port}`);
+        done(null, allowedSocketRequest(req.headers, origin));
+    }
+});
 
 io.engine.use(sessionMiddleware);
 
-const attempts = new Map();
 function allowAttempt(socket, action, limit = 5, windowMs = 15 * 60 * 1000) {
-    const key = `${action}:${socket.handshake.address || 'unknown'}`;
-    const now = Date.now();
-    const recent = (attempts.get(key) || []).filter(time => now - time < windowMs);
-    if (recent.length >= limit) return false;
-    recent.push(now);
-    attempts.set(key, recent);
-    return true;
+    return limitRequest(`${action}:${socket.request.session?.userId || socket.handshake.address || 'unknown'}`, limit, windowMs);
 }
 
 data.io = io
@@ -335,15 +372,8 @@ app.get('/api/offers', async (req, res, next) => {
     }
 });
 
-const companyLookupAttempts = new Map();
 function allowCompanyLookup(req, limit = 15, windowMs = 15 * 60 * 1000) {
-    const key = req.ip || req.socket?.remoteAddress || 'unknown';
-    const now = Date.now();
-    const recent = (companyLookupAttempts.get(key) || []).filter((time) => now - time < windowMs);
-    if (recent.length >= limit) return false;
-    recent.push(now);
-    companyLookupAttempts.set(key, recent);
-    return true;
+    return limitRequest(`company:${req.ip}`, limit, windowMs);
 }
 
 app.get('/api/company-by-siret', async (req, res) => {
@@ -429,6 +459,12 @@ app.get('/ins/confirme/', (req, res) => {
     res.sendFile(path.join(__dirname, 'template/confirme.html'))
 })
 
+app.use((error, req, res, next) => {
+    if (res.headersSent) return next(error);
+    void serverLogger.error('http.error', 'Échec de la requête HTTP.', { code: error?.code || null }, { requestId: req.requestId });
+    res.status(error?.status === 413 ? 413 : error?.status === 400 ? 400 : 500).json({ error: 'La requête ne peut pas être traitée.' });
+});
+
 http.listen(port, '0.0.0.0', () => {
     console.log(`[Serveur][Information] Server allumé en ${useDevHttps ? 'HTTPS' : 'HTTP'} sur le port ${port}`);
     void serverLogger.cleanupExpiredLogs(31);
@@ -479,6 +515,7 @@ http.listen(port, '0.0.0.0', () => {
 });
 
 io.on('connection', (socket) => {
+    socket.use(createSocketGuard(socket, { getPool, sessionStore, allowAttempt }));
     console.log(`[Serveur][Connection] ${socket.id}`);
     const socketOptions = () => ({ userId: socket.request.session?.userId, socketId: socket.id });
     void serverLogger.info('socket.connected', 'Nouvelle connexion Socket.IO.', {
@@ -526,12 +563,6 @@ io.on('connection', (socket) => {
         void serverLogger.info('socket.disconnected', 'Connexion Socket.IO fermée.', { reason }, socketOptions());
     });
 
-    socket.on("connection", (valeur) => {
-        void runPublicAuthFeature('login', 'auth error', () => {
-            if (!allowAttempt(socket, 'login', 10)) return socket.emit('auth error', 'Trop de tentatives. Réessayez dans quelques minutes.');
-            return miku.connect(valeur, socket);
-        });
-    })
 
     socket.on("information user", (token) => {
         void runFeature('dashboard', () => miku.verifUser(socket))
@@ -548,9 +579,6 @@ io.on('connection', (socket) => {
         });
     })
 
-    socket.on('valid mail', (token) => {
-        miku.validMail(token, socket)
-    })
 
     socket.on('produit a surveiller', (token) => {
         void runFeature('dashboard', () => miku.needListe(socket))
@@ -709,6 +737,10 @@ io.on('connection', (socket) => {
     socket.on('delete role definition', (slug) => { miku.deleteRoleDefinition(slug, socket) })
 
     socket.on('logout', () => {
-        socket.request.session.destroy(() => socket.emit('logged out'));
+        socket.request.session.destroy((error) => {
+            if (error) return socket.emit('server error', 'Déconnexion impossible.');
+            socket.emit('logged out');
+            socket.disconnect(true);
+        });
     })
 })

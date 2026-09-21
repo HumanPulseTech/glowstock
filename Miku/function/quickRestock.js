@@ -39,6 +39,10 @@ module.exports = async function quickRestock(input, socket) {
         }
 
         const newQuantity = Number(product.quantite) + quantity;
+        if (!Number.isSafeInteger(newQuantity) || newQuantity > 1000000) {
+            await connexion.rollback();
+            return socket.emit('stock restock error', 'Le stock ne peut pas dépasser 1 000 000 unités.');
+        }
         await connexion.query('UPDATE produits SET quantite = ? WHERE id = ? AND id_user = ?', [newQuantity, product.id, userId]);
         await connexion.query(
             'INSERT INTO historique (id_user, type_mouv, value, id_art) VALUES (?, ?, ?, ?)',

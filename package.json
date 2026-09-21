@@ -4,7 +4,7 @@
   "description": "GlowStock est une WebApp qui permet la gestion du Stock pour les PO",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test security/tests/*.test.js",
     "start": "node app.js"
   },
   "author": "Jordan Buchet - HumanPulseTech",
@@ -24,14 +24,15 @@
     "express-session": "^1.18.1",
     "jquery": "^3.6.0",
     "mariadb": "^3.5.2",
-    "mysql2": "^3.11.3",
+    "mysql2": "^3.24.4",
     "nodemon": "^3.1.7",
     "path": "^0.12.7",
     "socket.io": "^4.8.0",
     "stripe": "^22.5.0"
   },
   "overrides": {
-  "socket.io-parser": "4.2.7",
-  "ws": "8.21.0"
-}
+    "express-mysql-session": { "mysql2": "$mysql2" },
+    "socket.io-parser": "4.2.7",
+    "ws": "8.21.0"
+  }
 }

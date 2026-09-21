@@ -1,5 +1,20 @@
 const { getPool } = require('../db.js');
 const { hasPermission } = require('../permissions.js');
+const { canManageRole } = require('../../security/authorization.js');
 module.exports = async function deleteRoleDefinition(slug, socket) {
-  let c; try { const userId=socket.request.session?.userId; slug=String(slug||''); if(!userId||!(await hasPermission(userId,'manage_roles')))return socket.emit('admin error','Accès refusé.'); if(['admin','user','sabo'].includes(slug))return socket.emit('admin error','Ce rôle système ne peut pas être supprimé.'); c=await (await getPool()).getConnection(); const users=await c.query('SELECT COUNT(*) AS total FROM users WHERE role=?',[slug]); if(Number(users[0].total)>0)return socket.emit('admin error','Attribue un autre rôle aux comptes concernés avant suppression.'); await c.query('DELETE FROM roles WHERE slug=?',[slug]); require('./logError.js')(userId,'suppression_role',`Rôle supprimé : ${slug}.`);socket.emit('role definition deleted'); } catch(e){socket.emit('admin error','Impossible de supprimer le rôle.')}finally{if(c)c.release()}
+  let c;
+  try {
+    const userId = socket.request.session?.userId;
+    slug = String(slug || '');
+    if (!userId || !(await hasPermission(userId, 'manage_roles'))) return socket.emit('admin error', 'Accès refusé.');
+    if (['admin', 'user', 'sabo', 'fondateur'].includes(slug)) return socket.emit('admin error', 'Ce rôle système ne peut pas être supprimé.');
+    c = await (await getPool()).getConnection();
+    if (!(await canManageRole(c, userId, slug))) return socket.emit('admin error', 'Ce rôle dépasse tes droits.');
+    const users = await c.query('SELECT COUNT(*) AS total FROM users WHERE role=?', [slug]);
+    if (Number(users[0].total) > 0) return socket.emit('admin error', 'Attribue un autre rôle aux comptes concernés avant suppression.');
+    await c.query('DELETE FROM roles WHERE slug=?', [slug]);
+    require('./logError.js')(userId, 'suppression_role', `Rôle supprimé : ${slug}.`);
+    socket.emit('role definition deleted');
+  } catch (e) { socket.emit('admin error', 'Impossible de supprimer le rôle.'); }
+  finally { if (c) c.release(); }
 };

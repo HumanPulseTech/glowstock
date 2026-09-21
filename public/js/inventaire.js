@@ -39,7 +39,11 @@ socket.on('reponse liste inv', (resultat) => {
     });
 })
 
-const csvCell = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`
+const csvCell = (value) => {
+    const text = String(value ?? '')
+    const safe = /^[\s\u0000]*[=+@-]|^[\t\r\n\u0000]/.test(text) ? "'" + text : text
+    return `"${safe.replace(/"/g, '""')}"`
+}
 const formatFileDate = () => new Date().toISOString().slice(0, 10)
 
 exportButton?.addEventListener('click', () => {

@@ -1,6 +1,7 @@
 const { getPool } = require('../db.js');
 const data = require('../array.js');
-const bcrypt = require('bcrypt');
+const { hashPassword } = require('../../security/runtime.js');
+const { assertPasswordStorage } = require('../../security/password-storage.js');
 const crypto = require('crypto');
 const mailBrevo = require('./mailBrevo.js');
 const serverLogger = require('../serverLogger.js');
@@ -31,7 +32,7 @@ module.exports = async function addUser(input, id) {
         const privacyAcknowledged = input?.privacyAcknowledged === true;
         const selectedOffer = Number(input?.offerId);
         const pendingOfferId = Number.isInteger(selectedOffer) && selectedOffer > 0 ? selectedOffer : null;
-        if (!prenom || !nom || !emailPattern.test(email) || password.length < 12 || password.length > 128 || siret.length !== 14) {
+        if (!prenom || !nom || !emailPattern.test(email) || Array.from(password).length < 12 || password.length > 128 || siret.length !== 14) {
             const validationContext = { emailDomain: email.split('@')[1] || null };
             void serverLogger.warn('signup.validation_failed', 'Données d’inscription invalides.', validationContext, { socketId: id });
             void logError(null, 'inscription_validation', 'Données d’inscription invalides.', validationContext);
@@ -61,7 +62,8 @@ module.exports = async function addUser(input, id) {
         await ensureStripeSchema();
         await ensureCompanySchema();
         connexion = await pool.getConnection();
-        const hash = await bcrypt.hash(password, 12);
+        await assertPasswordStorage(connexion);
+        const hash = await hashPassword(password);
         const token = crypto.randomBytes(32).toString('hex');
         let result;
         try {
@@ -136,7 +138,7 @@ module.exports = async function addUser(input, id) {
         }
         void serverLogger.error('signup.failed', 'Erreur lors de la création du compte.', {
             code: error?.code || null,
-            message: error?.message || null
+            // SQL messages can contain credentials or verification tokens.
         }, { userId: createdUserId, socketId: id });
         if (createdUserId) {
             void logError(createdUserId, 'inscription', 'Erreur lors de la création du compte.', {

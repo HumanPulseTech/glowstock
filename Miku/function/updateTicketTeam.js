@@ -13,6 +13,9 @@ module.exports = async function updateTicketTeam(input, socket) {
         connection = await getPoolConnection();
         const access = await getTicketAccess(connection, actorId);
         if (!access?.permissions.includes('manage_accounts')) return socket.emit('admin error', 'Accès refusé.');
+        const targets = await connection.query('SELECT role, ticket_team FROM users WHERE id = ?', [targetId]);
+        const founder = access.role === 'fondateur' || access.team === 'fondateur';
+        if (!targets[0] || (!founder && (targetId === Number(actorId) || team === 'fondateur' || targets[0].role === 'fondateur' || targets[0].ticket_team === 'fondateur'))) return socket.emit('admin error', 'Modification de cette équipe réservée au fondateur.');
         const result = await connection.query('UPDATE users SET ticket_team = ? WHERE id = ?', [team, targetId]);
         if (!result.affectedRows) return socket.emit('admin error', 'Compte introuvable.');
         void serverLogger.info('ticket.team_updated', 'Équipe tickets modifiée pour un compte.', { targetId, team }, { userId: actorId, socketId: socket.id });

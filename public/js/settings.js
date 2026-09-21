@@ -164,7 +164,8 @@ document.getElementById('logout').addEventListener('click', () => socket.emit('l
 socket.on('profile updated', () => show('Profil mis à jour.'));
 socket.on('password updated', () => {
   document.getElementById('password_form').reset();
-  show('Mot de passe modifié.');
+  alert('Mot de passe modifié. Toutes les sessions sont invalidées : reconnecte-toi.');
+  window.location.assign('/connexion/');
 });
 socket.on('subscription cancellation requested', ({ dateAbo }) => {
   setCancellationState(true, dateAbo);

@@ -350,8 +350,12 @@ async function processWebhookEvent(event) {
     let connexion;
     try {
         connexion = await (await getPool()).getConnection();
+        await connexion.beginTransaction();
         const registered = await connexion.query('INSERT IGNORE INTO stripe_webhook_events (event_id, event_type) VALUES (?, ?)', [event.id, event.type]);
-        if (!registered.affectedRows) return { duplicate: true };
+        if (!registered.affectedRows) {
+            await connexion.rollback();
+            return { duplicate: true };
+        }
         try {
             switch (event.type) {
                 case 'checkout.session.completed':
@@ -373,10 +377,13 @@ async function processWebhookEvent(event) {
                     break;
             }
         } catch (error) {
-            await connexion.query('DELETE FROM stripe_webhook_events WHERE event_id = ?', [event.id]);
             throw error;
         }
+        await connexion.commit();
         return { duplicate: false };
+    } catch (error) {
+        if (connexion) await connexion.rollback().catch(() => {});
+        throw error;
     } finally {
         if (connexion) connexion.release();
     }

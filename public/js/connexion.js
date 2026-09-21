@@ -1,5 +1,3 @@
-const socket = window.glowstockSocket || (window.glowstockSocket = io());
-
 const email = document.getElementById('email')
 const password = document.getElementById('password')
 const validation = document.getElementById('validation_form')
@@ -11,11 +9,13 @@ validation.addEventListener('click', async (e) => {
         password: password.value
     }
 
-    socket.emit("connection", valeur)
+    if (validation.disabled) return;
+    validation.disabled = true;
+    try {
+        const response = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(valeur) });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Connexion impossible.');
+        window.location.assign('/dashboard/');
+    } catch (error) { alert(error.message); }
+    finally { validation.disabled = false; }
 })
-
-socket.on('connection ac', () => {
-    window.location = "/dashboard/"
-})
-
-socket.on('auth error', (message) => alert(message));

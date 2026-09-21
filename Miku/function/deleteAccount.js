@@ -1,6 +1,7 @@
 const { getPool } = require('../db.js');
 const { hasPermission } = require('../permissions.js');
 const logError = require('./logError.js');
+const { canManageRole } = require('../../security/authorization.js');
 
 module.exports = async function deleteAccount(input, socket) {
   let connexion;
@@ -14,10 +15,14 @@ module.exports = async function deleteAccount(input, socket) {
     }
     connexion = await (await getPool()).getConnection();
     await connexion.beginTransaction();
-    const users = await connexion.query('SELECT id, email FROM users WHERE id = ? LIMIT 1', [targetId]);
+    const users = await connexion.query('SELECT id, email, role, ticket_team FROM users WHERE id = ? LIMIT 1', [targetId]);
     if (!users.length) {
       await connexion.rollback();
       return socket.emit('admin error', 'Compte introuvable.');
+    }
+    if (!(await canManageRole(connexion, adminId, users[0].ticket_team === 'fondateur' ? 'fondateur' : users[0].role))) {
+      await connexion.rollback();
+      return socket.emit('admin error', 'Ce compte dépasse tes droits.');
     }
 
     // Les contraintes historiques sont volontairement restrictives : on retire
