@@ -41,6 +41,20 @@ class SqlStore {
         } catch (error) { await connection.rollback().catch(() => {}); throw error; }
         finally { connection.release(); }
     }
+    async verify(tenant) {
+        const connection = await this.pool.getConnection();
+        try {
+            await connection.beginTransaction();
+            const [states] = await connection.query('SELECT sequence_no, last_mac FROM caisse_state WHERE tenant_id = ?', [tenant]);
+            const [events] = await connection.query('SELECT tenant_id, sequence_no, actor_id, occurred_at, payload, previous_mac, mac FROM caisse_events WHERE tenant_id = ? ORDER BY sequence_no', [tenant]);
+            await connection.commit();
+            const state = states[0];
+            const head = { sequence: Number(state?.sequence_no || 0), mac: state?.last_mac || '' };
+            const { verifyEvents } = require('./verify-events');
+            return { ok: verifyEvents(events, this.key, String(tenant), head), eventCount: events.length, sequence: head.sequence, scope: 'sql-audit-chain' };
+        } catch (error) { await connection.rollback().catch(() => {}); throw error; }
+        finally { connection.release(); }
+    }
 }
 // Only for isolated tests/visual demo; production entry point cannot select this store.
 class MemoryStore {
@@ -56,5 +70,6 @@ class MemoryStore {
         if (outcome.event) this.states.set(tenant, state);
         return structuredClone(outcome.result);
     }
+    async verify() { return { ok: true, eventCount: 0, sequence: 0, scope: 'memory-demo' }; }
 }
 module.exports = { SqlStore, MemoryStore, eventMac };

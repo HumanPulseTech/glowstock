@@ -2,7 +2,7 @@
     'use strict';
     const $ = id => document.getElementById(id);
     const money = cents => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(cents / 100);
-    const state = { workspace: null, draft: null, kind: 'all', query: '', busy: false, lineId: null, paymentKey: null, uncertain: false, inventoryOnly: true };
+    const state = { workspace: null, draft: null, kind: 'all', query: '', busy: false, lineId: null, paymentKey: null, uncertain: false, inventoryOnly: true, integrity: null };
     const node = (tag, className, content) => { const element = document.createElement(tag); if (className) element.className = className; if (content !== undefined) element.textContent = content; return element; };
     const button = (text, className, action, label) => { const b = node('button', className, text); b.type = 'button'; if (label) b.setAttribute('aria-label', label); b.disabled = state.busy; b.onclick = action; return b; };
     function message(text = '', error = false) { $('message').textContent = text; $('message').classList.toggle('error', error); }
@@ -63,7 +63,7 @@
     }
     function render() {
         if (!state.workspace) return;
-        renderCatalog(); renderTicket(); renderAppointments(); renderCashSession(); renderCashReport();
+        renderCatalog(); renderTicket(); renderAppointments(); renderCashSession(); renderCashReport(); renderIntegrity();
         const count = state.workspace.products.length;
         $('inventory_status').textContent = `${count} produit(s) de votre inventaire${state.inventoryOnly ? ' · consultation seule, service caisse indisponible ou en connexion' : ' · tarifs de vente à définir si nécessaire'}`;
         for (const id of ['new_catalog', 'appointments_button', 'new_sale', 'walk_in']) $(id).disabled = state.busy || state.inventoryOnly;
@@ -99,6 +99,13 @@
             metric('Espèces attendues', money(report.expectedCents)),
             metric('Compté · écart', `${money(report.closingCents)} · ${money(report.differenceCents)}`)
         );
+    }
+    function renderIntegrity() {
+        const target = $('integrity_status'), result = state.integrity;
+        if (!result) { target.textContent = ''; target.classList.remove('error'); return; }
+        target.classList.toggle('error', !result.ok);
+        if (result.scope === 'memory-demo') target.textContent = 'Démonstration locale : aucun journal SQL à contrôler.';
+        else target.textContent = result.ok ? `Journal cohérent : ${result.eventCount} événement(s), séquence ${result.sequence}.` : 'Alerte : incohérence détectée dans le journal. Stoppez les opérations et contactez l’assistance.';
     }
     function renderTicketHistory() {
         const list = $('ticket_history_list'); list.replaceChildren();
@@ -191,6 +198,11 @@
     $('refresh_inventory').onclick = () => action(async () => { await loadInventory(); await load(); });
     $('appointments_button').onclick = () => state.workspace && $('appointments_dialog').showModal();
     $('ticket_history_button').onclick = () => { if (!state.workspace) return; renderTicketHistory(); $('ticket_history_dialog').showModal(); };
+    $('integrity_button').onclick = () => void action(async () => {
+        state.integrity = await api('audit-verify');
+        if (!state.integrity.ok) throw Object.assign(new Error('Incohérence détectée dans le journal.'), { status: 409 });
+        renderIntegrity();
+    });
     $('new_sale').onclick = $('walk_in').onclick = () => state.workspace && action(() => openDraft());
     $('mobile_cart').onclick = () => $('ticket_panel').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion:reduce)').matches ? 'instant' : 'smooth' });
     document.addEventListener('keydown', event => { if (event.key === '/' && !['INPUT', 'SELECT', 'TEXTAREA'].includes(event.target.tagName) && !document.querySelector('dialog[open]')) { event.preventDefault(); $('search').focus(); } });

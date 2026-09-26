@@ -36,6 +36,21 @@ test('SQL store accepts a native JSON value returned by the MariaDB driver', asy
     await jsonStore.run('42', '42', state => ({ result: state.catalog.length }));
     assert.equal(await jsonStore.run('42', '42', state => ({ result: state.drafts.length })), 0);
 });
+test('SQL store verifies the persisted audit chain against its current head', async () => {
+    const calls = [];
+    const connection = {
+        beginTransaction: async () => calls.push('begin'), commit: async () => calls.push('commit'), rollback: async () => calls.push('rollback'), release: () => calls.push('release'),
+        query: async sql => {
+            if (sql.includes('FROM caisse_state')) return [[{ sequence_no: 0, last_mac: '' }]];
+            if (sql.includes('FROM caisse_events')) return [[]];
+            throw new Error('Unexpected query');
+        }
+    };
+    const store = new SqlStore({ getConnection: async () => connection }, 'audit-test-key');
+    const result = await store.verify('42');
+    assert.deepEqual(result, { ok: true, eventCount: 0, sequence: 0, scope: 'sql-audit-chain' });
+    assert.deepEqual(calls, ['begin', 'commit', 'release']);
+});
 test('SQL store rolls back instead of committing an incomplete event/state change', async () => {
     const { calls, store } = fixture(true);
     await assert.rejects(store.run('42', '42', () => ({ event: { type: 'test' } })), /interruption/);

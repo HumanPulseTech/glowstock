@@ -34,7 +34,8 @@ function createApp({ store, secret }) {
         try {
             const command = req.params.command;
             if (command === 'checkout') return res.status(501).json({ error: 'Encaissement réel indisponible : pilote non validé fiscalement.' });
-            if (!['workspace', 'catalog', 'open', 'add', 'line', 'customer', 'simulate', 'cash-open', 'cash-close'].includes(command)) return res.sendStatus(404);
+            if (!['workspace', 'catalog', 'open', 'add', 'line', 'customer', 'simulate', 'cash-open', 'cash-close', 'audit-verify'].includes(command)) return res.sendStatus(404);
+            if (command === 'audit-verify') return res.json(await store.verify(req.identity.tenant));
             const context = req.payload?.context;
             if (!context || !Array.isArray(context.products) || !Array.isArray(context.appointments) || context.products.length > 1000 || context.appointments.length > 200) throw new CaisseError('Contexte invalide.');
             const result = await store.run(req.identity.tenant, req.identity.actor, state => command === 'workspace'
