@@ -53,7 +53,10 @@ async function callCaisse(command, input, userId, getPool) {
     const context = await loadContext(getPool, userId), path = `/v1/${command}`;
     const body = JSON.stringify({ context, input });
     const response = await fetch(new URL(path, base), { method: 'POST', body, headers: signRequest(secret, path, userId, userId, body), signal: AbortSignal.timeout(6000), redirect: 'error' });
-    if (![200, 400, 404, 409, 501].includes(response.status)) throw new Error('CAISSE_UPSTREAM');
+    if (![200, 400, 404, 409, 501].includes(response.status)) {
+        console.warn('Caisse service rejected request', { command, status: response.status });
+        throw new Error('CAISSE_UPSTREAM');
+    }
     return { status: response.status, data: await response.json() };
 }
 function createCaisseRouter({ getPool, hasPermission, getSubscriptionStatus, requireSameOrigin, limitRequest }) {
@@ -81,7 +84,10 @@ function createCaisseRouter({ getPool, hasPermission, getSubscriptionStatus, req
         try {
             const response = await callCaisse(req.params.command, req.body, req.session.userId, getPool);
             res.status(response.status).json(response.data);
-        } catch { res.status(503).json({ error: 'La caisse ne répond pas. Recharge le ticket avant de réessayer : la dernière action a peut-être été enregistrée.' }); }
+        } catch (error) {
+            console.warn('Caisse bridge unavailable', { command: req.params.command, code: error && error.code ? error.code : null, name: error && error.name ? error.name : null });
+            res.status(503).json({ error: 'La caisse ne répond pas. Recharge le ticket avant de réessayer : la dernière action a peut-être été enregistrée.' });
+        }
     });
     return router;
 }

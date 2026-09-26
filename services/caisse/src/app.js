@@ -12,7 +12,14 @@ function createApp({ store, secret }) {
         try {
             if (!Buffer.isBuffer(req.body)) return res.sendStatus(415);
             const identity = verifyRequest(secret, req);
-            if (!identity || !(await store.claimNonce(identity.nonce))) return res.sendStatus(401);
+            if (!identity) {
+                console.warn('Caisse request rejected', { path: req.originalUrl, reason: 'invalid_signature' });
+                return res.sendStatus(401);
+            }
+            if (!(await store.claimNonce(identity.nonce))) {
+                console.warn('Caisse request rejected', { path: req.originalUrl, reason: 'replayed_nonce' });
+                return res.sendStatus(401);
+            }
             req.identity = identity;
             req.payload = JSON.parse(req.body.toString('utf8'));
             next();
@@ -33,6 +40,13 @@ function createApp({ store, secret }) {
     app.use((error, req, res, next) => {
         if (res.headersSent) return next(error);
         const status = error instanceof CaisseError ? error.status : error.type === 'entity.too.large' ? 413 : error instanceof SyntaxError ? 400 : 503;
+        console.error('Caisse request failed', {
+            method: req.method,
+            path: req.originalUrl,
+            status,
+            code: error && error.code ? error.code : null,
+            name: error && error.name ? error.name : null
+        });
         res.status(status).json({ error: error instanceof CaisseError ? error.message : 'Service caisse indisponible. Aucun encaissement réel effectué.' });
     });
     return app;
