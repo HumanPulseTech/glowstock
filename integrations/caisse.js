@@ -80,7 +80,7 @@ function createCaisseRouter({ getPool, hasPermission, getSubscriptionStatus, req
         catch (error) { res.status(503).json({ error: error.message === 'CAISSE_PILOT_LIMIT' ? 'Cet inventaire dépasse la limite de 1 000 produits du pilote.' : 'Impossible de lire l’inventaire de ton compte. Réessaie dans un instant.' }); }
     });
     router.post('/:command', requireSameOrigin, express.json({ limit: '24kb' }), async (req, res) => {
-        if (!['workspace', 'catalog', 'open', 'add', 'line', 'customer', 'simulate'].includes(req.params.command)) return res.sendStatus(404);
+        if (!['workspace', 'catalog', 'open', 'add', 'line', 'customer', 'simulate', 'cash-open', 'cash-close'].includes(req.params.command)) return res.sendStatus(404);
         try {
             const response = await callCaisse(req.params.command, req.body, req.session.userId, getPool);
             res.status(response.status).json(response.data);

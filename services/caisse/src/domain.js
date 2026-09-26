@@ -5,7 +5,7 @@ class CaisseError extends Error {
 const demand = (valid, message, status) => { if (!valid) throw new CaisseError(message, status); };
 const integer = (value, min, max) => Number.isSafeInteger(value) && value >= min && value <= max;
 const name = value => typeof value === 'string' && value.trim().length > 0 && value.trim().length <= 150;
-const initialState = () => ({ catalog: [], drafts: [] });
+const initialState = () => ({ catalog: [], drafts: [], cashSession: null });
 function pricing(input) {
     demand(integer(input.unitCents, 0, 1000000), 'Saisis un prix entre 0 et 10 000 euros.');
     demand(['vat', 'exempt'].includes(input.taxMode), 'Choisis le régime de TVA.');
@@ -35,12 +35,34 @@ function recommendAppointment(appointments, drafts, minuteNow) {
 }
 function view(state, context) {
     return { mode: 'simulation', catalog: [...(context.services || []), ...state.catalog], customers: context.customers || [], drafts: state.drafts, products: context.products,
-        appointments: context.appointments, day: context.day,
+        appointments: context.appointments, day: context.day, cashSession: state.cashSession || null,
         recommendedAppointmentId: recommendAppointment(context.appointments, state.drafts, context.minuteNow) };
 }
 function applyCommand(state, command, input, context) {
     demand(input && typeof input === 'object' && !Array.isArray(input), 'Demande invalide.');
     const now = new Date().toISOString();
+    if (command === 'cash-open') {
+        demand(typeof input.key === 'string' && /^[a-f0-9-]{36}$/.test(input.key), 'Clé d’ouverture manquante.');
+        if (state.cashSession?.status === 'open' && state.cashSession.openKey === input.key) return { result: state.cashSession };
+        demand(state.cashSession?.status !== 'open', 'La caisse est déjà ouverte.', 409);
+        demand(integer(input.openingCents, 0, 1000000000), 'Montant d’ouverture invalide.');
+        state.cashSession = { id: randomUUID(), status: 'open', openingCents: input.openingCents, openedAt: now, openKey: input.key };
+        return { result: state.cashSession, event: { type: 'cash_session.opened', session: structuredClone(state.cashSession) } };
+    }
+    if (command === 'cash-close') {
+        const session = state.cashSession;
+        if (session?.status === 'closed' && session.closeKey === input.key) return { result: session };
+        demand(session?.status === 'open', 'Aucune caisse ouverte à fermer.', 409);
+        demand(input.sessionId === session.id, 'Cette caisse a changé. Recharge la page.', 409);
+        demand(typeof input.key === 'string' && /^[a-f0-9-]{36}$/.test(input.key), 'Clé de fermeture manquante.');
+        demand(integer(input.closingCents, 0, 1000000000), 'Montant de fermeture invalide.');
+        const simulatedCashCents = state.drafts.filter(d => d.status === 'simulated' && d.simulation?.method === 'cash' && d.simulation.validatedAt >= session.openedAt)
+            .reduce((sum, draft) => sum + draft.totals.grossCents, 0);
+        session.status = 'closed'; session.closeKey = input.key; session.closedAt = now; session.closingCents = input.closingCents;
+        session.simulatedCashCents = simulatedCashCents; session.expectedCents = session.openingCents + simulatedCashCents;
+        session.differenceCents = session.closingCents - session.expectedCents;
+        return { result: session, event: { type: 'cash_session.closed', session: structuredClone(session) } };
+    }
     if (command === 'catalog') {
         demand(['product', 'service'].includes(input.kind) && name(input.name), 'Article ou prestation invalide.');
         let productId = null;

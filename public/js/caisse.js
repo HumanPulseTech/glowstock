@@ -63,10 +63,30 @@
     }
     function render() {
         if (!state.workspace) return;
-        renderCatalog(); renderTicket(); renderAppointments();
+        renderCatalog(); renderTicket(); renderAppointments(); renderCashSession();
         const count = state.workspace.products.length;
         $('inventory_status').textContent = `${count} produit(s) de votre inventaire${state.inventoryOnly ? ' · consultation seule, service caisse indisponible ou en connexion' : ' · tarifs de vente à définir si nécessaire'}`;
         for (const id of ['new_catalog', 'appointments_button', 'new_sale', 'walk_in']) $(id).disabled = state.busy || state.inventoryOnly;
+    }
+    function renderCashSession() {
+        const session = state.workspace.cashSession, summary = $('cash_session_summary'), control = $('cash_session_button');
+        control.disabled = state.busy || state.inventoryOnly;
+        if (session?.status === 'open') {
+            summary.textContent = `Caisse ouverte · fonds de départ : ${money(session.openingCents)}.`;
+            control.textContent = 'Fermer la caisse';
+            control.onclick = () => {
+                $('cash_close_form').reset(); $('closing_amount').value = (session.openingCents / 100).toFixed(2).replace('.', ',');
+                $('cash_close_form').querySelector('.form-error').textContent = ''; $('cash_close_dialog').showModal();
+            };
+        } else if (session?.status === 'closed') {
+            summary.textContent = `Dernière fermeture · compté : ${money(session.closingCents)} · écart simulé : ${money(session.differenceCents)}.`;
+            control.textContent = 'Ouvrir la caisse';
+            control.onclick = () => { $('cash_open_form').reset(); $('opening_amount').value = '0,00'; $('cash_open_form').querySelector('.form-error').textContent = ''; $('cash_open_dialog').showModal(); };
+        } else {
+            summary.textContent = 'Aucune caisse ouverte. Saisissez le fonds de départ pour commencer.';
+            control.textContent = 'Ouvrir la caisse';
+            control.onclick = () => { $('cash_open_form').reset(); $('opening_amount').value = '0,00'; $('cash_open_form').querySelector('.form-error').textContent = ''; $('cash_open_dialog').showModal(); };
+        }
     }
     function renderCatalog() {
         const list = $('catalog'); list.replaceChildren();
@@ -167,6 +187,15 @@
     $('payment_form').onsubmit = event => { event.preventDefault(); void action(async () => {
         const method = document.querySelector('[name=method]:checked').value;
         await mutate('simulate', { key: state.paymentKey, method, tenderedCents: method === 'cash' ? cents($('cash_amount').value) : undefined }); $('payment_dialog').close();
+    }, event.currentTarget); };
+    $('cash_open_form').onsubmit = event => { event.preventDefault(); void action(async () => {
+        await api('cash-open', { key: crypto.randomUUID(), openingCents: cents($('opening_amount').value) });
+        await load(); $('cash_open_dialog').close();
+    }, event.currentTarget); };
+    $('cash_close_form').onsubmit = event => { event.preventDefault(); void action(async () => {
+        const session = state.workspace.cashSession;
+        await api('cash-close', { key: crypto.randomUUID(), sessionId: session?.id, closingCents: cents($('closing_amount').value) });
+        await load(); $('cash_close_dialog').close();
     }, event.currentTarget); };
     void action(async () => {
         await loadInventory();
