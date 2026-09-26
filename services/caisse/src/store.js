@@ -34,6 +34,12 @@ class SqlStore {
                 const occurredAt = new Date().toISOString(), payload = JSON.stringify(outcome.event);
                 const mac = eventMac(this.key, tenant, sequence, actor, occurredAt, row.last_mac, payload);
                 await connection.query('INSERT INTO caisse_events (tenant_id, sequence_no, actor_id, occurred_at, payload, previous_mac, mac) VALUES (?, ?, ?, ?, ?, ?, ?)', [tenant, sequence, actor, occurredAt, payload, row.last_mac, mac]);
+                if (outcome.event.type === 'cash_session.closed') {
+                    const closure = state.cashClosures?.at(-1);
+                    if (!closure || closure.id !== outcome.event.session.id) throw new Error('Cash closure seal state mismatch');
+                    closure.auditSeal = mac;
+                    if (state.cashSession?.id === closure.id) state.cashSession.auditSeal = mac;
+                }
                 await connection.query('UPDATE caisse_state SET data = ?, sequence_no = ?, last_mac = ? WHERE tenant_id = ?', [JSON.stringify(state), sequence, mac, tenant]);
             }
             await connection.commit();
@@ -45,13 +51,27 @@ class SqlStore {
         const connection = await this.pool.getConnection();
         try {
             await connection.beginTransaction();
-            const [states] = await connection.query('SELECT sequence_no, last_mac FROM caisse_state WHERE tenant_id = ?', [tenant]);
+            const [states] = await connection.query('SELECT data, sequence_no, last_mac FROM caisse_state WHERE tenant_id = ?', [tenant]);
             const [events] = await connection.query('SELECT tenant_id, sequence_no, actor_id, occurred_at, payload, previous_mac, mac FROM caisse_events WHERE tenant_id = ? ORDER BY sequence_no', [tenant]);
             await connection.commit();
             const state = states[0];
             const head = { sequence: Number(state?.sequence_no || 0), mac: state?.last_mac || '' };
             const { verifyEvents } = require('./verify-events');
-            return { ok: verifyEvents(events, this.key, String(tenant), head), eventCount: events.length, sequence: head.sequence, scope: 'sql-audit-chain' };
+            let closuresMatch = true, sealedClosures = 0;
+            if (state) {
+                const stored = Buffer.isBuffer(state.data) ? state.data.toString('utf8') : state.data;
+                const data = typeof stored === 'string' ? JSON.parse(stored) : stored;
+                for (const closure of data?.cashClosures || []) {
+                    if (!closure.auditSeal) continue;
+                    sealedClosures++;
+                    const event = events.find(row => row.mac === closure.auditSeal);
+                    let payload;
+                    try { payload = event && JSON.parse(event.payload); } catch { closuresMatch = false; break; }
+                    const report = { ...closure }; delete report.auditSeal;
+                    if (payload?.type !== 'cash_session.closed' || JSON.stringify(payload.session) !== JSON.stringify(report)) { closuresMatch = false; break; }
+                }
+            }
+            return { ok: verifyEvents(events, this.key, String(tenant), head) && closuresMatch, eventCount: events.length, sequence: head.sequence, sealedClosures, scope: 'sql-audit-chain' };
         } catch (error) { await connection.rollback().catch(() => {}); throw error; }
         finally { connection.release(); }
     }

@@ -48,8 +48,26 @@ test('SQL store verifies the persisted audit chain against its current head', as
     };
     const store = new SqlStore({ getConnection: async () => connection }, 'audit-test-key');
     const result = await store.verify('42');
-    assert.deepEqual(result, { ok: true, eventCount: 0, sequence: 0, scope: 'sql-audit-chain' });
+    assert.deepEqual(result, { ok: true, eventCount: 0, sequence: 0, sealedClosures: 0, scope: 'sql-audit-chain' });
     assert.deepEqual(calls, ['begin', 'commit', 'release']);
+});
+test('SQL store seals a closing report with its immutable event MAC', async () => {
+    const starting = { catalog: [], drafts: [], cashSession: { id: 'close-1', status: 'closed' }, cashClosures: [{ id: 'close-1', status: 'closed', closingCents: 1200 }] };
+    const calls = [];
+    const connection = {
+        beginTransaction: async () => {}, commit: async () => {}, rollback: async () => {}, release: () => {},
+        query: async (sql, args) => {
+            calls.push({ sql, args });
+            if (sql.startsWith('SELECT')) return [[{ data: JSON.stringify(starting), sequence_no: 0, last_mac: '' }]];
+            return [{}];
+        }
+    };
+    const store = new SqlStore({ getConnection: async () => connection }, 'audit-test-key');
+    const result = await store.run('42', '42', state => ({ result: state.cashClosures[0], event: { type: 'cash_session.closed', session: structuredClone(state.cashClosures[0]) } }));
+    const event = calls.find(call => call.sql.startsWith('INSERT INTO caisse_events'));
+    const update = calls.find(call => call.sql.startsWith('UPDATE caisse_state'));
+    assert.equal(result.auditSeal, event.args[6]);
+    assert.equal(JSON.parse(update.args[0]).cashClosures[0].auditSeal, event.args[6]);
 });
 test('SQL store rolls back instead of committing an incomplete event/state change', async () => {
     const { calls, store } = fixture(true);

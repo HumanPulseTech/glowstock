@@ -97,7 +97,8 @@
             metric('Tickets simulés', String(report.payments?.ticketCount || 0)),
             metric('Carte / autre', `${money(report.payments?.cardCents || 0)} · ${money(report.payments?.otherCents || 0)}`),
             metric('Espèces attendues', money(report.expectedCents)),
-            metric('Compté · écart', `${money(report.closingCents)} · ${money(report.differenceCents)}`)
+            metric('Compté · écart', `${money(report.closingCents)} · ${money(report.differenceCents)}`),
+            metric('Empreinte de clôture', report.auditSeal ? `${report.auditSeal.slice(0, 16)}…` : 'Fermeture antérieure')
         );
     }
     function renderIntegrity() {
@@ -105,7 +106,7 @@
         if (!result) { target.textContent = ''; target.classList.remove('error'); return; }
         target.classList.toggle('error', !result.ok);
         if (result.scope === 'memory-demo') target.textContent = 'Démonstration locale : aucun journal SQL à contrôler.';
-        else target.textContent = result.ok ? `Journal cohérent : ${result.eventCount} événement(s), séquence ${result.sequence}.` : 'Alerte : incohérence détectée dans le journal. Stoppez les opérations et contactez l’assistance.';
+        else target.textContent = result.ok ? `Journal cohérent : ${result.eventCount} événement(s), séquence ${result.sequence}, ${result.sealedClosures} fermeture(s) scellée(s).` : 'Alerte : incohérence détectée dans le journal. Stoppez les opérations et contactez l’assistance.';
     }
     function renderTicketHistory() {
         const list = $('ticket_history_list'); list.replaceChildren();
