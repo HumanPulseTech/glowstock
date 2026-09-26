@@ -21,7 +21,12 @@ function createApp({ store, secret }) {
                 return res.sendStatus(401);
             }
             req.identity = identity;
-            req.payload = JSON.parse(req.body.toString('utf8'));
+            try {
+                req.payload = JSON.parse(req.body.toString('utf8'));
+            } catch (error) {
+                error.code = 'CAISSE_INVALID_REQUEST_JSON';
+                throw error;
+            }
             next();
         } catch (error) { next(error); }
     });

@@ -17,7 +17,13 @@ class SqlStore {
             await connection.query('INSERT IGNORE INTO caisse_state (tenant_id, data) VALUES (?, ?)', [tenant, JSON.stringify(initialState())]);
             const [rows] = await connection.query('SELECT data, sequence_no, last_mac FROM caisse_state WHERE tenant_id = ? FOR UPDATE', [tenant]);
             const row = rows[0];
-            const state = JSON.parse(row.data);
+            let state;
+            try {
+                state = JSON.parse(row.data);
+            } catch (error) {
+                error.code = 'CAISSE_INVALID_STATE';
+                throw error;
+            }
             const outcome = operation(state);
             if (outcome.event) {
                 const sequence = Number(row.sequence_no) + 1;
