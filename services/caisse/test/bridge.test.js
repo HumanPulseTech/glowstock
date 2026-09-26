@@ -60,22 +60,24 @@ test('inventory reads only the signed-in account and works without a cashier ser
     app.use('/api/caisse', createCaisseRouter({ hasPermission: async () => true, getSubscriptionStatus: async () => ({ level: 'full' }),
         requireSameOrigin: (req, res, next) => next(), limitRequest: () => true,
         getPool: async () => ({ query: async (sql, args) => {
-            calls.push({ sql, args }); assert.match(sql, /^SELECT .* FROM produits WHERE id_user = \?/);
+            calls.push({ sql, args });
+            if (/product_prices/.test(sql)) return [];
+            assert.match(sql, /^SELECT .* FROM produits WHERE id_user = \?/);
             return [{ id: args[0] + 100, nom: `Produit compte ${args[0]}`, ref_fournisseur: '001259', quantite: 7 }];
         } }) }));
     const server = app.listen(0, '127.0.0.1'); await new Promise(r => server.once('listening', r));
     t.after(() => new Promise(r => server.close(r)));
     const base = `http://127.0.0.1:${server.address().port}/api/caisse/inventory?userId=999`;
     const response = await fetch(base); assert.equal(response.status, 200); assert.equal(response.headers.get('cache-control'), 'no-store');
-    assert.deepEqual((await response.json()).products, [{ id: 142, name: 'Produit compte 42', reference: '001259', quantity: 7 }]);
+    assert.deepEqual((await response.json()).products, [{ id: 142, name: 'Produit compte 42', reference: '001259', quantity: 7, priceCents: null }]);
     account = 43; assert.equal((await (await fetch(base)).json()).products[0].id, 143);
-    assert.deepEqual(calls.map(c => c.args), [[42], [43]]);
+    assert.deepEqual([...new Set(calls.map(c => c.args[0]))], [42, 43]);
 });
 test('bridge scopes both source queries to authenticated account and excludes notes', async () => {
     const calls = [];
     const pool = { query: async (sql, args) => { calls.push({ sql, args }); return []; } };
     const data = await loadContext(async () => pool, 42);
-    assert.equal(calls.length, 2);
-    for (const { sql, args } of calls) { assert.match(sql, /WHERE id_user = \?/); assert.equal(args[0], 42); assert.doesNotMatch(sql, /notes/); }
+    assert.ok(calls.length >= 2);
+    for (const { sql, args } of calls) { assert.match(sql, /(?:WHERE|AND) (?:\w+\.)?id_user = \?/); assert.equal(args[0], 42); assert.doesNotMatch(sql, /notes/); }
     assert.deepEqual(data.products, []);
 });

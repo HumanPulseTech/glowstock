@@ -72,6 +72,7 @@ if (saveButton) saveButton.addEventListener('click', () => {
         categorie: document.getElementById('categorie').value,
         description: document.getElementById('description').value,
         quantite: document.getElementById('quantite').value,
+        prix: document.getElementById('prix').value,
         seuil: document.getElementById('seuil').value,
         alertes: document.getElementById('alertes').checked
     });

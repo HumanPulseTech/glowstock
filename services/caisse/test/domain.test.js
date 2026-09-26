@@ -13,6 +13,11 @@ test('appointment prefill keeps authoritative tariff and stable ticket on reconn
     assert.equal(applyCommand(state, 'open', { key: randomUUID(), appointmentId: 5 }, context).result.id, draft.id);
     assert.equal(state.drafts.length, 1);
 });
+test('service context is visible in the cashier and can prefill a linked appointment', () => {
+    const context = { day: '2026-09-21', minuteNow: 600, products: [], customers: [{ id: 9, name: 'Camille' }], services: [{ id: 'service-4', serviceId: 4, kind: 'service', productId: null, name: 'Pose', unitCents: 5500, taxMode: 'vat', taxBps: 2000 }], appointments: [{ id: 3, customerId: 9, serviceId: 4, clientName: 'Ancien nom', serviceName: 'Pose', startTime: '10:00', startMinute: 600, endMinute: 660 }] };
+    const state = initialState(); const opened = applyCommand(state, 'open', { appointmentId: 3, key: crypto.randomUUID() }, context).result;
+    assert.equal(opened.customerId, 9); assert.equal(opened.clientName, 'Camille'); assert.equal(opened.lines[0].unitCents, 5500);
+});
 test('unknown appointment price remains unpriced, never free by default', () => {
     const state = initialState(); const draft = applyCommand(state, 'open', { key: randomUUID(), appointmentId: 5 }, context).result;
     assert.equal(draft.lines[0].unitCents, null); assert.equal(draft.totals.needsPrice, true);

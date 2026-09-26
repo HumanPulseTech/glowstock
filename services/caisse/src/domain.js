@@ -34,7 +34,7 @@ function recommendAppointment(appointments, drafts, minuteNow) {
     return recent.length === 1 ? recent[0].id : null;
 }
 function view(state, context) {
-    return { mode: 'simulation', catalog: state.catalog, drafts: state.drafts, products: context.products,
+    return { mode: 'simulation', catalog: [...(context.services || []), ...state.catalog], customers: context.customers || [], drafts: state.drafts, products: context.products,
         appointments: context.appointments, day: context.day,
         recommendedAppointmentId: recommendAppointment(context.appointments, state.drafts, context.minuteNow) };
 }
@@ -66,10 +66,13 @@ function applyCommand(state, command, input, context) {
         const retry = state.drafts.find(d => d.openKey === input.key);
         if (retry) return { result: retry };
         demand(state.drafts.length < 100, 'Limite de 100 tickets du pilote atteinte.');
-        const matches = appointment?.serviceName ? state.catalog.filter(c => c.kind === 'service' && c.name.toLocaleLowerCase('fr') === appointment.serviceName.toLocaleLowerCase('fr')) : [];
+        const catalog = [...(context.services || []), ...state.catalog];
+        const matches = appointment?.serviceId ? catalog.filter(c => c.serviceId === appointment.serviceId) : appointment?.serviceName ? catalog.filter(c => c.kind === 'service' && c.name.toLocaleLowerCase('fr') === appointment.serviceName.toLocaleLowerCase('fr')) : [];
         const lines = appointment?.serviceName ? [{ id: randomUUID(), kind: 'service', productId: null, name: appointment.serviceName,
             quantity: 1, ...(matches.length === 1 ? pricing(matches[0]) : { unitCents: null, taxBps: null, taxMode: null }) }] : [];
-        const draft = { id: randomUUID(), openKey: input.key, appointmentId: appointment?.id || null, clientName: appointment?.clientName || 'Vente sans rendez-vous',
+        const customer = (context.customers || []).find(c => c.id === (input.customerId || appointment?.customerId));
+        demand(input.customerId == null || customer, 'Cliente introuvable dans ce compte.', 404);
+        const draft = { id: randomUUID(), openKey: input.key, appointmentId: appointment?.id || null, customerId: customer?.id || null, clientName: customer?.name || appointment?.clientName || 'Vente sans rendez-vous',
             appointmentTime: appointment?.startTime || null, status: 'draft', version: 1, lines, createdAt: now, updatedAt: now, totals: totals(lines) };
         state.drafts.push(draft);
         return { result: draft, event: { type: 'draft.created', draft: structuredClone(draft) } };
@@ -82,8 +85,12 @@ function applyCommand(state, command, input, context) {
     }
     demand(draft.status === 'draft', 'Ce ticket est figé. Une nouvelle opération est nécessaire.', 409);
     demand(input.version === draft.version, 'Ticket modifié dans un autre onglet. Recharge-le.', 409);
-    if (command === 'add') {
-        const item = state.catalog.find(c => c.id === input.catalogId);
+    if (command === 'customer') {
+        const customer = (context.customers || []).find(c => c.id === input.customerId);
+        demand(customer, 'Cliente introuvable dans ce compte.', 404);
+        draft.customerId = customer.id; draft.clientName = customer.name;
+    } else if (command === 'add') {
+        const item = [...(context.services || []), ...state.catalog].find(c => c.id === input.catalogId);
         demand(item, 'Tarif introuvable.', 404);
         demand(draft.lines.length < 100, 'Maximum 100 lignes par ticket.');
         const current = draft.lines.find(l => l.catalogId === item.id);

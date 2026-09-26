@@ -31,6 +31,7 @@ socket.on('reponse liste inv', (resultat) => {
                 <td class="mono">${escapeHtml(element.code_barres || '—')}</td>
                 <td>${escapeHtml(element.categorie)}</td>
                 <td class="stock-num">${escapeHtml(element.quantite)}</td>
+                <td>${element.prix_centimes == null ? 'Non renseigné' : escapeHtml((Number(element.prix_centimes) / 100).toFixed(2).replace('.', ',') + ' €')}</td>
                 <td>${escapeHtml(element.seuil_alerte)}</td>
                 <td><span class="badge ${element.suive_alertes && element.quantite <= element.seuil_alerte ? 'warning' : 'success'}">${element.suive_alertes && element.quantite <= element.seuil_alerte ? 'Stock bas' : 'OK'}</span></td>
         `

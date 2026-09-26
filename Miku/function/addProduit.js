@@ -3,6 +3,7 @@ const { getSubscriptionStatus, allows } = require('../subscription.js');
 const { hasPermission } = require('../permissions.js');
 const serverLogger = require('../serverLogger.js');
 const logError = require('./logError.js');
+const { priceCents, saveProductPrice, InputError } = require('../../integrations/crm-data');
 
 const text = (value, max) => typeof value === 'string' ? value.trim().slice(0, max) : '';
 const wholeNumber = (value, min, max) => Number.isInteger(Number(value)) && Number(value) >= min && Number(value) <= max ? Number(value) : null;
@@ -31,6 +32,7 @@ module.exports = async function addProduit(input, socket) {
             void logError(userId, 'ajout_produit_permission', 'Ce rôle ne peut pas ajouter de produit.', { operationId });
             return socket.emit('auth error', 'Ce rôle ne peut pas ajouter de produit.');
         }
+        const salePrice = priceCents(input?.prix);
         const produit = {
             nom: text(input?.nom, 255), reference: text(input?.reference, 100), codeBarres: text(input?.codeBarres, 100) || null, marque: text(input?.marque, 100) || null,
             categorie: text(input?.categorie, 50) || null, description: text(input?.description, 5000) || null,
@@ -60,6 +62,7 @@ module.exports = async function addProduit(input, socket) {
             [produit.nom, produit.reference, produit.codeBarres, produit.marque, produit.categorie, produit.description, produit.quantite, produit.seuil, produit.alertes, userId]
         );
         productId = Number(result?.insertId) || null;
+        if (salePrice !== null) await saveProductPrice(connexion, userId, productId, salePrice);
         await connexion.query('INSERT INTO historique (id_user, type_mouv, value, id_art) VALUES (?, ?, ?, ?)', [userId, 'Création produit', String(produit.quantite), productId]);
         commitAttempted = true;
         await connexion.commit();
@@ -69,6 +72,7 @@ module.exports = async function addProduit(input, socket) {
         }, { userId, socketId: socket.id });
         socket.emit('produit ajoute', { id: productId, nom: produit.nom, operationId });
     } catch (error) {
+        if (error instanceof InputError) return socket.emit('produit error', error.message);
         // Une coupure peut arriver juste après le COMMIT : la base a bien
         // enregistré le produit, mais le pilote renvoie quand même une erreur.
         // On vérifie ce cas avant d’afficher une fausse erreur à l’utilisatrice.
