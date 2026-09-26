@@ -27,6 +27,15 @@ test('SQL store locks tenant and commits event and state in one transaction', as
     const update = calls.find(c => c.sql?.startsWith('UPDATE'));
     assert.deepEqual(update.args.slice(1), [1, mac, '42']);
 });
+test('SQL store accepts a native JSON value returned by the MariaDB driver', async () => {
+    const connection = {
+        beginTransaction: async () => {}, commit: async () => {}, rollback: async () => {}, release: () => {},
+        query: async sql => sql.startsWith('SELECT') ? [[{ data: { catalog: [], drafts: [] }, sequence_no: 0, last_mac: '' }]] : [{}]
+    };
+    const jsonStore = new SqlStore({ getConnection: async () => connection }, 'audit-test-key');
+    await jsonStore.run('42', '42', state => ({ result: state.catalog.length }));
+    assert.equal(await jsonStore.run('42', '42', state => ({ result: state.drafts.length })), 0);
+});
 test('SQL store rolls back instead of committing an incomplete event/state change', async () => {
     const { calls, store } = fixture(true);
     await assert.rejects(store.run('42', '42', () => ({ event: { type: 'test' } })), /interruption/);

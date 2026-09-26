@@ -19,7 +19,10 @@ class SqlStore {
             const row = rows[0];
             let state;
             try {
-                state = JSON.parse(row.data);
+                // mysql2 returns LONGTEXT as a string but returns a native object for a JSON column.
+                // Supporting both avoids treating a valid JSON-column state as the string "[object Object]".
+                const stored = Buffer.isBuffer(row.data) ? row.data.toString('utf8') : row.data;
+                state = typeof stored === 'string' ? JSON.parse(stored) : structuredClone(stored);
             } catch (error) {
                 error.code = 'CAISSE_INVALID_STATE';
                 throw error;
