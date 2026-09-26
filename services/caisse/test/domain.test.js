@@ -54,15 +54,17 @@ test('simulated cash validation is frozen and idempotent with exact change', () 
     assert.throws(() => applyCommand(state, 'line', { draftId: draft.id, version: first.version, quantity: 0, lineId: first.lines[0].id }, context), /figé/);
 });
 test('cash-session opening and closing record counted cash without fiscal treatment', () => {
-    const state = initialState(); const openKey = randomUUID();
+    const { state, draft } = setup(); const openKey = randomUUID();
     const opened = applyCommand(state, 'cash-open', { key: openKey, openingCents: 2500 }, context).result;
     assert.equal(opened.status, 'open'); assert.equal(opened.openingCents, 2500);
     assert.equal(applyCommand(state, 'cash-open', { key: openKey, openingCents: 2500 }, context).result.id, opened.id);
     assert.throws(() => applyCommand(state, 'cash-open', { key: randomUUID(), openingCents: 0 }, context), /déjà ouverte/);
+    applyCommand(state, 'simulate', { draftId: draft.id, version: draft.version, key: randomUUID(), method: 'cash', tenderedCents: 6000 }, context);
     const closeKey = randomUUID();
-    const closed = applyCommand(state, 'cash-close', { key: closeKey, sessionId: opened.id, closingCents: 2600 }, context).result;
-    assert.equal(closed.status, 'closed'); assert.equal(closed.expectedCents, 2500); assert.equal(closed.differenceCents, 100);
-    assert.equal(applyCommand(state, 'cash-close', { key: closeKey, sessionId: opened.id, closingCents: 2600 }, context).result.id, opened.id);
+    const closed = applyCommand(state, 'cash-close', { key: closeKey, sessionId: opened.id, closingCents: 8100 }, context).result;
+    assert.equal(closed.status, 'closed'); assert.equal(closed.expectedCents, 8000); assert.equal(closed.differenceCents, 100);
+    assert.deepEqual(closed.payments, { ticketCount: 1, cardCents: 0, cashCents: 5500, otherCents: 0 }); assert.equal(state.cashClosures.length, 1);
+    assert.equal(applyCommand(state, 'cash-close', { key: closeKey, sessionId: opened.id, closingCents: 8100 }, context).result.id, opened.id);
 });
 test('simulation checks product stock but never changes source inventory', () => {
     const { state, draft } = setup(); const item = applyCommand(state, 'catalog', { ...tariff, kind: 'product', productId: 7 }, context).result;

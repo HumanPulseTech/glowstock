@@ -63,7 +63,7 @@
     }
     function render() {
         if (!state.workspace) return;
-        renderCatalog(); renderTicket(); renderAppointments(); renderCashSession();
+        renderCatalog(); renderTicket(); renderAppointments(); renderCashSession(); renderCashReport();
         const count = state.workspace.products.length;
         $('inventory_status').textContent = `${count} produit(s) de votre inventaire${state.inventoryOnly ? ' · consultation seule, service caisse indisponible ou en connexion' : ' · tarifs de vente à définir si nécessaire'}`;
         for (const id of ['new_catalog', 'appointments_button', 'new_sale', 'walk_in']) $(id).disabled = state.busy || state.inventoryOnly;
@@ -87,6 +87,30 @@
             control.textContent = 'Ouvrir la caisse';
             control.onclick = () => { $('cash_open_form').reset(); $('opening_amount').value = '0,00'; $('cash_open_form').querySelector('.form-error').textContent = ''; $('cash_open_dialog').showModal(); };
         }
+    }
+    function renderCashReport() {
+        const report = state.workspace.cashClosures?.[0], section = $('cash_report'), data = $('cash_report_data');
+        section.hidden = !report; if (!report) return;
+        data.replaceChildren();
+        const metric = (label, value) => { const item = node('div'); item.append(node('span', '', label), node('strong', '', value)); return item; };
+        data.append(
+            metric('Tickets simulés', String(report.payments?.ticketCount || 0)),
+            metric('Carte / autre', `${money(report.payments?.cardCents || 0)} · ${money(report.payments?.otherCents || 0)}`),
+            metric('Espèces attendues', money(report.expectedCents)),
+            metric('Compté · écart', `${money(report.closingCents)} · ${money(report.differenceCents)}`)
+        );
+    }
+    function renderTicketHistory() {
+        const list = $('ticket_history_list'); list.replaceChildren();
+        const method = { card: 'Carte simulée', cash: 'Espèces simulées', other: 'Autre simulé' };
+        const tickets = state.workspace.drafts.filter(d => d.status === 'simulated').sort((a, b) => String(b.simulation?.validatedAt).localeCompare(String(a.simulation?.validatedAt)));
+        for (const ticket of tickets) {
+            const entry = node('article', 'history-ticket');
+            const when = ticket.simulation?.validatedAt ? new Date(ticket.simulation.validatedAt).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }) : 'Date indisponible';
+            entry.append(node('strong', '', `${ticket.clientName} · ${money(ticket.totals.grossCents)}`), node('span', '', `${when} · ${method[ticket.simulation?.method] || 'Simulation'} · ${ticket.lines.length} ligne(s)`));
+            list.append(entry);
+        }
+        if (!tickets.length) list.append(node('p', 'empty', 'Aucun ticket validé en simulation pour le moment.'));
     }
     function renderCatalog() {
         const list = $('catalog'); list.replaceChildren();
@@ -166,6 +190,7 @@
     $('new_catalog').onclick = () => state.workspace && openCatalog(); $('catalog_kind').onchange = updateCatalogType;
     $('refresh_inventory').onclick = () => action(async () => { await loadInventory(); await load(); });
     $('appointments_button').onclick = () => state.workspace && $('appointments_dialog').showModal();
+    $('ticket_history_button').onclick = () => { if (!state.workspace) return; renderTicketHistory(); $('ticket_history_dialog').showModal(); };
     $('new_sale').onclick = $('walk_in').onclick = () => state.workspace && action(() => openDraft());
     $('mobile_cart').onclick = () => $('ticket_panel').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion:reduce)').matches ? 'instant' : 'smooth' });
     document.addEventListener('keydown', event => { if (event.key === '/' && !['INPUT', 'SELECT', 'TEXTAREA'].includes(event.target.tagName) && !document.querySelector('dialog[open]')) { event.preventDefault(); $('search').focus(); } });
