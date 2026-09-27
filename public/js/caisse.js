@@ -2,7 +2,7 @@
     'use strict';
     const $ = id => document.getElementById(id);
     const money = cents => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(cents / 100);
-    const state = { workspace: null, draft: null, kind: 'all', query: '', busy: false, lineId: null, paymentKey: null, uncertain: false, inventoryOnly: true, integrity: null };
+    const state = { workspace: null, draft: null, kind: 'all', query: '', busy: false, lineId: null, paymentKey: null, cancellationTicket: null, uncertain: false, inventoryOnly: true, integrity: null };
     const node = (tag, className, content) => { const element = document.createElement(tag); if (className) element.className = className; if (content !== undefined) element.textContent = content; return element; };
     const button = (text, className, action, label) => { const b = node('button', className, text); b.type = 'button'; if (label) b.setAttribute('aria-label', label); b.disabled = state.busy; b.onclick = action; return b; };
     function message(text = '', error = false) { $('message').textContent = text; $('message').classList.toggle('error', error); }
@@ -106,16 +106,20 @@
         if (!result) { target.textContent = ''; target.classList.remove('error'); return; }
         target.classList.toggle('error', !result.ok);
         if (result.scope === 'memory-demo') target.textContent = 'Démonstration locale : aucun journal SQL à contrôler.';
-        else target.textContent = result.ok ? `Journal cohérent : ${result.eventCount} événement(s), séquence ${result.sequence}, ${result.sealedClosures} fermeture(s) scellée(s).` : 'Alerte : incohérence détectée dans le journal. Stoppez les opérations et contactez l’assistance.';
+        else target.textContent = result.ok ? `Journal cohérent : ${result.eventCount} événement(s), séquence ${result.sequence}, ${result.sealedTickets || 0} ticket(s), ${result.sealedCorrections || 0} annulation(s) et ${result.sealedClosures} fermeture(s) scellés.` : 'Alerte : incohérence détectée dans le journal. Stoppez les opérations et contactez l’assistance.';
     }
     function renderTicketHistory() {
         const list = $('ticket_history_list'); list.replaceChildren();
         const method = { card: 'Carte simulée', cash: 'Espèces simulées', other: 'Autre simulé' };
         const tickets = state.workspace.drafts.filter(d => d.status === 'simulated').sort((a, b) => String(b.simulation?.validatedAt).localeCompare(String(a.simulation?.validatedAt)));
+        const corrections = new Map((state.workspace.corrections || []).map(item => [item.ticketId, item]));
         for (const ticket of tickets) {
             const entry = node('article', 'history-ticket');
             const when = ticket.simulation?.validatedAt ? new Date(ticket.simulation.validatedAt).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }) : 'Date indisponible';
-            entry.append(node('strong', '', `${ticket.clientName} · ${money(ticket.totals.grossCents)}`), node('span', '', `${when} · ${method[ticket.simulation?.method] || 'Simulation'} · ${ticket.lines.length} ligne(s)`));
+            const correction = corrections.get(ticket.id);
+            entry.append(node('strong', '', `${ticket.simulation?.reference || 'SIM'} · ${ticket.clientName} · ${money(ticket.totals.grossCents)}`), node('span', '', `${when} · ${method[ticket.simulation?.method] || 'Simulation'} · ${ticket.lines.length} ligne(s)`));
+            if (correction) entry.append(node('span', 'small', `${correction.reference} · annulé en simulation : ${correction.reason}`));
+            else entry.append(button('Annuler la simulation', 'text-button', () => openCancellation(ticket)));
             list.append(entry);
         }
         if (!tickets.length) list.append(node('p', 'empty', 'Aucun ticket validé en simulation pour le moment.'));
@@ -193,6 +197,12 @@
         $('line_tax').value = line.taxMode === 'exempt' ? 'exempt' : line.taxBps === null ? '' : String(line.taxBps);
         $('price_form').querySelector('.form-error').textContent = ''; $('price_dialog').showModal(); $('line_price').focus();
     }
+    function openCancellation(ticket) {
+        state.cancellationTicket = ticket;
+        $('cancel_ticket_reference').textContent = `${ticket.simulation?.reference || 'Ticket'} · ${ticket.clientName} · ${money(ticket.totals.grossCents)}`;
+        $('cancel_form').reset(); $('cancel_form').querySelector('.form-error').textContent = '';
+        $('cancel_dialog').showModal(); $('cancel_reason').focus();
+    }
     $('search').addEventListener('input', event => { state.query = event.target.value; renderCatalog(); });
     document.querySelectorAll('[data-kind]').forEach(b => b.onclick = () => { state.kind = b.dataset.kind; document.querySelectorAll('[data-kind]').forEach(tab => tab.setAttribute('aria-pressed', String(tab === b))); renderCatalog(); });
     $('new_catalog').onclick = () => state.workspace && openCatalog(); $('catalog_kind').onchange = updateCatalogType;
@@ -235,6 +245,13 @@
         const session = state.workspace.cashSession;
         await api('cash-close', { key: crypto.randomUUID(), sessionId: session?.id, closingCents: cents($('closing_amount').value) });
         await load(); $('cash_close_dialog').close();
+    }, event.currentTarget); };
+    $('cancel_form').onsubmit = event => { event.preventDefault(); void action(async () => {
+        const ticket = state.cancellationTicket;
+        if (!ticket) throw new Error('Ticket à annuler introuvable.');
+        await api('cancel', { ticketId: ticket.id, key: crypto.randomUUID(), reason: $('cancel_reason').value });
+        if (state.draft?.id === ticket.id) state.draft = null;
+        await load(); renderTicketHistory(); $('cancel_dialog').close();
     }, event.currentTarget); };
     void action(async () => {
         await loadInventory();
