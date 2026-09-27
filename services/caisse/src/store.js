@@ -40,6 +40,16 @@ class SqlStore {
                     closure.auditSeal = mac;
                     if (state.cashSession?.id === closure.id) state.cashSession.auditSeal = mac;
                 }
+                if (outcome.event.type === 'simulation.frozen') {
+                    const ticket = state.drafts?.find(item => item.id === outcome.event.draft.id);
+                    if (!ticket?.simulation) throw new Error('Simulation seal state mismatch');
+                    ticket.simulation.auditSeal = mac;
+                }
+                if (outcome.event.type === 'simulation.cancelled') {
+                    const correction = state.corrections?.find(item => item.id === outcome.event.correction.id);
+                    if (!correction) throw new Error('Correction seal state mismatch');
+                    correction.auditSeal = mac;
+                }
                 await connection.query('UPDATE caisse_state SET data = ?, sequence_no = ?, last_mac = ? WHERE tenant_id = ?', [JSON.stringify(state), sequence, mac, tenant]);
             }
             await connection.commit();
@@ -57,7 +67,7 @@ class SqlStore {
             const state = states[0];
             const head = { sequence: Number(state?.sequence_no || 0), mac: state?.last_mac || '' };
             const { verifyEvents } = require('./verify-events');
-            let closuresMatch = true, sealedClosures = 0;
+            let sealsMatch = true, sealedClosures = 0, sealedTickets = 0, sealedCorrections = 0;
             if (state) {
                 const stored = Buffer.isBuffer(state.data) ? state.data.toString('utf8') : state.data;
                 const data = typeof stored === 'string' ? JSON.parse(stored) : stored;
@@ -66,12 +76,30 @@ class SqlStore {
                     sealedClosures++;
                     const event = events.find(row => row.mac === closure.auditSeal);
                     let payload;
-                    try { payload = event && JSON.parse(event.payload); } catch { closuresMatch = false; break; }
+                    try { payload = event && JSON.parse(event.payload); } catch { sealsMatch = false; break; }
                     const report = { ...closure }; delete report.auditSeal;
-                    if (payload?.type !== 'cash_session.closed' || JSON.stringify(payload.session) !== JSON.stringify(report)) { closuresMatch = false; break; }
+                    if (payload?.type !== 'cash_session.closed' || JSON.stringify(payload.session) !== JSON.stringify(report)) { sealsMatch = false; break; }
+                }
+                for (const ticket of data?.drafts || []) {
+                    if (ticket.status !== 'simulated' || !ticket.simulation?.auditSeal) continue;
+                    sealedTickets++;
+                    const event = events.find(row => row.mac === ticket.simulation.auditSeal);
+                    let payload;
+                    try { payload = event && JSON.parse(event.payload); } catch { sealsMatch = false; break; }
+                    const record = structuredClone(ticket); delete record.simulation.auditSeal;
+                    if (payload?.type !== 'simulation.frozen' || JSON.stringify(payload.draft) !== JSON.stringify(record)) { sealsMatch = false; break; }
+                }
+                for (const correction of data?.corrections || []) {
+                    if (!correction.auditSeal) continue;
+                    sealedCorrections++;
+                    const event = events.find(row => row.mac === correction.auditSeal);
+                    let payload;
+                    try { payload = event && JSON.parse(event.payload); } catch { sealsMatch = false; break; }
+                    const record = { ...correction }; delete record.auditSeal;
+                    if (payload?.type !== 'simulation.cancelled' || JSON.stringify(payload.correction) !== JSON.stringify(record)) { sealsMatch = false; break; }
                 }
             }
-            return { ok: verifyEvents(events, this.key, String(tenant), head) && closuresMatch, eventCount: events.length, sequence: head.sequence, sealedClosures, scope: 'sql-audit-chain' };
+            return { ok: verifyEvents(events, this.key, String(tenant), head) && sealsMatch, eventCount: events.length, sequence: head.sequence, sealedClosures, sealedTickets, sealedCorrections, scope: 'sql-audit-chain' };
         } catch (error) { await connection.rollback().catch(() => {}); throw error; }
         finally { connection.release(); }
     }

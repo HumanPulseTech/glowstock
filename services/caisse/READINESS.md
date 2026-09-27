@@ -1,6 +1,6 @@
 # Préparation fiscale — état réel du pilote
 
-Date : 21 septembre 2026. Version : 0.1.0 simulation. **Conformité non démontrée / non certifié / non utilisable pour enregistrer les règlements réels.**
+Date : 27 septembre 2026. Version : 0.1.0 simulation. **Conformité non démontrée / non certifié / non utilisable pour enregistrer les règlements réels.**
 
 Ce document est une liste d'écarts techniques, pas un audit exhaustif du référentiel NF525. Le référentiel officiel complet et sa version applicable doivent être obtenus avant de construire une matrice exigence par exigence. Aucun identifiant d'exigence NF525 n'est inventé ici.
 
@@ -10,12 +10,12 @@ La démarche AFNOR inclut un audit ; la validation n'est pas garantie par le dé
 | --- | --- | --- |
 | Périmètre | Service et base séparés | Établissements, sociétés, acteurs et responsabilités ; version officielle du référentiel |
 | Calculs | Centimes, arrondi TVA par ligne, taux explicite | Règles validées, ventilation par taux, remises, acomptes, arrondis, cas limites |
-| Intégrité | Ticket simulé figé, version, transaction SQL, HMAC | Modèle fiscal immuable, ancrage indépendant, vérification à l'exploitation, gestion et rotation des clés |
+| Intégrité | Ticket simulé figé, référence séquentielle de simulation, annulation additive, transaction SQL, HMAC et vérification des tickets/annulations/clôtures | Modèle fiscal définitif, ancrage indépendant, vérification à l'exploitation, gestion et rotation des clés |
 | Traçabilité | Acteur, séquence et instant des événements métier | Journal fiscal complet incluant incidents, opérations sensibles et changements de configuration ; politique horloge |
-| Paiements | Simulations carte/espèces/autre | Sessions de caisse, encaissements réels, paiements fractionnés, annulations, avoirs, remboursements, preuves et rapprochement |
+| Paiements | Simulations carte/espèces/autre avec référence TPE optionnelle ; annulation de simulation traçable | Sessions de caisse, encaissements réels, paiements fractionnés, avoirs, remboursements, preuves et rapprochement |
 | Stock | Lecture et vérification indicative, sans écriture | Réservation/concurrence, mécanisme de livraison durable des mouvements, reprise et déduplication interservices |
 | Conservation | Base dédiée | Durées applicables, sauvegardes indépendantes, restauration testée, contrôle d'intégrité et protection des accès |
-| Clôtures et archives | Absent | Clôtures, totalisateurs, archives sécurisées, exports de contrôle et outils de lecture indépendants |
+| Clôtures et archives | Ouverture/fermeture simulée et empreinte HMAC de clôture | Totalisateurs réglementaires, archives sécurisées externes, exports de contrôle et outils de lecture indépendants |
 | Exploitation | Docker Node 22, arrêt propre, secrets externes | Recette MariaDB réelle, tests de charge/panne/reprise, surveillance, procédures incident et mises à jour maîtrisées |
 | Dossier et qualité | Sources et tests automatisés | Matrice officielle complète, preuves versionnées, procédures éditeur, documentation utilisateur et audit du périmètre |
 
@@ -27,4 +27,16 @@ La démarche AFNOR inclut un audit ; la validation n'est pas garantie par le dé
 4. Recetter sur l'infrastructure cible : transactions, accès croisés, interruptions, tentatives de modification, sauvegarde/restauration et archives. Faire revoir les risques résiduels indépendamment.
 5. Constituer le dossier et suivre le processus d'évaluation choisi. Ne publier aucune allégation NF525 sans base vérifiée et autorisation applicable.
 
-Le module ne dispose d'aucun interrupteur permettant un encaissement réel : `CAISSE_MODE` doit rester `simulation`, et l'opération `checkout` retourne 501. L'ouverture réelle demandera une nouvelle version et une décision explicite, pas une simple variable d'environnement.
+## Jalons techniques nécessaires avant tout passage en production
+
+La version actuelle crée uniquement des identifiants `SIM-*` et `SIM-ANN-*` sans valeur fiscale. Elle n'est pas convertible en ventes réelles par changement de variable.
+
+1. Définir le modèle de vente fiscal versionné : numéro définitif, identité de l'établissement, TVA, remises, acomptes et ventilation par taux.
+2. Remplacer l'annulation de simulation par des avoirs/remboursements de production **additifs**, chacun lié au document initial et à son moyen de remboursement.
+3. Intégrer le prestataire de paiement choisi sans jamais enregistrer de données carte ; gérer les paiements fractionnés et les réponses incertaines de façon idempotente.
+4. Écrire les sorties de stock dans une boîte d'envoi durable vers GlowStock, avec déduplication, reprise et rapprochement.
+5. Ancrer périodiquement la tête du journal et les clôtures dans un stockage distinct, à accès séparé, avec restauration vérifiée.
+6. Ajouter totalisateurs, clôtures périodiques, export contrôlable et lecteur indépendant des archives.
+7. Recetter sur la vraie infrastructure : accès par rôle, coupure réseau, redémarrage, concurrence, sauvegarde/restauration, tentative d'altération et audit externe.
+
+Le module ne dispose d’aucun interrupteur permettant un encaissement réel : `CAISSE_MODE` doit rester `simulation`, et l’opération `checkout` retourne 501. L’ouverture réelle demandera une nouvelle version, une recette complète et une décision explicite, pas une simple variable d’environnement.

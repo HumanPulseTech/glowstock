@@ -50,8 +50,18 @@ test('simulated cash validation is frozen and idempotent with exact change', () 
     const input = { draftId: draft.id, version: draft.version, key, method: 'cash', tenderedCents: 6000 };
     const first = applyCommand(state, 'simulate', input, context).result;
     assert.equal(first.simulation.changeCents, 500); assert.equal(first.simulation.provider, 'manual'); assert.match(first.simulation.label, /SANS VALEUR FISCALE/);
+    assert.equal(first.simulation.reference, 'SIM-000001'); assert.equal(first.simulation.auditSeal, null);
     assert.equal(applyCommand(state, 'simulate', input, context).result.id, first.id);
     assert.throws(() => applyCommand(state, 'line', { draftId: draft.id, version: first.version, quantity: 0, lineId: first.lines[0].id }, context), /figé/);
+});
+test('a simulation is never rewritten: cancellation is a separate linked record', () => {
+    const { state, draft } = setup();
+    const ticket = applyCommand(state, 'simulate', { draftId: draft.id, version: draft.version, key: randomUUID(), method: 'card' }, context).result;
+    const frozen = structuredClone(ticket);
+    const cancellation = applyCommand(state, 'cancel', { ticketId: ticket.id, key: randomUUID(), reason: 'Cliente partie avant la vente.' }, context).result;
+    assert.equal(cancellation.reference, 'SIM-ANN-000002'); assert.equal(cancellation.ticketReference, 'SIM-000001');
+    assert.deepEqual(ticket, frozen); assert.equal(state.corrections.length, 1);
+    assert.throws(() => applyCommand(state, 'cancel', { ticketId: ticket.id, key: randomUUID(), reason: 'Doublon.' }, context), /déjà une annulation/);
 });
 test('cash-session opening and closing record counted cash without fiscal treatment', () => {
     const { state, draft } = setup(); const openKey = randomUUID();

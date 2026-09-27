@@ -4,7 +4,7 @@ const { manualPayment } = require('./payment-record');
 const demand = (valid, message, status) => { if (!valid) throw new CaisseError(message, status); };
 const integer = (value, min, max) => Number.isSafeInteger(value) && value >= min && value <= max;
 const name = value => typeof value === 'string' && value.trim().length > 0 && value.trim().length <= 150;
-const initialState = () => ({ catalog: [], drafts: [], cashSession: null, cashClosures: [] });
+const initialState = () => ({ catalog: [], drafts: [], corrections: [], ticketSequence: 0, cashSession: null, cashClosures: [] });
 function pricing(input) {
     demand(integer(input.unitCents, 0, 1000000), 'Saisis un prix entre 0 et 10 000 euros.');
     demand(['vat', 'exempt'].includes(input.taxMode), 'Choisis le régime de TVA.');
@@ -35,6 +35,7 @@ function recommendAppointment(appointments, drafts, minuteNow) {
 function view(state, context) {
     return { mode: 'simulation', catalog: [...(context.services || []), ...state.catalog], customers: context.customers || [], drafts: state.drafts, products: context.products,
         appointments: context.appointments, day: context.day, cashSession: state.cashSession || null,
+        corrections: state.corrections || [],
         cashClosures: (state.cashClosures || []).slice(-31).reverse(),
         recommendedAppointmentId: recommendAppointment(context.appointments, state.drafts, context.minuteNow) };
 }
@@ -56,7 +57,8 @@ function applyCommand(state, command, input, context) {
         demand(input.sessionId === session.id, 'Cette caisse a changé. Recharge la page.', 409);
         demand(typeof input.key === 'string' && /^[a-f0-9-]{36}$/.test(input.key), 'Clé de fermeture manquante.');
         demand(integer(input.closingCents, 0, 1000000000), 'Montant de fermeture invalide.');
-        const simulatedTickets = state.drafts.filter(d => d.status === 'simulated' && d.simulation?.validatedAt >= session.openedAt);
+        const cancelledTicketIds = new Set((state.corrections || []).filter(c => c.createdAt >= session.openedAt).map(c => c.ticketId));
+        const simulatedTickets = state.drafts.filter(d => d.status === 'simulated' && d.simulation?.validatedAt >= session.openedAt && !cancelledTicketIds.has(d.id));
         const payments = { ticketCount: simulatedTickets.length, cardCents: 0, cashCents: 0, otherCents: 0 };
         for (const draft of simulatedTickets) payments[`${draft.simulation.method}Cents`] += draft.totals.grossCents;
         const simulatedCashCents = payments.cashCents;
@@ -102,6 +104,23 @@ function applyCommand(state, command, input, context) {
         state.drafts.push(draft);
         return { result: draft, event: { type: 'draft.created', draft: structuredClone(draft) } };
     }
+    if (command === 'cancel') {
+        const ticket = state.drafts.find(d => d.id === input.ticketId && d.status === 'simulated');
+        demand(ticket, 'Ticket simulé introuvable.', 404);
+        demand(typeof input.key === 'string' && /^[a-f0-9-]{36}$/.test(input.key), 'Clé d’annulation manquante.');
+        const existingCorrection = (state.corrections || []).find(c => c.ticketId === ticket.id);
+        if (existingCorrection?.requestKey === input.key) return { result: existingCorrection };
+        demand(!existingCorrection, 'Ce ticket possède déjà une annulation. Créez une nouvelle opération si nécessaire.', 409);
+        demand(typeof input.reason === 'string' && input.reason.trim().length >= 3 && input.reason.trim().length <= 500, 'Motif d’annulation requis (3 à 500 caractères).');
+        const sequence = Number(state.ticketSequence || 0) + 1;
+        const correction = { id: randomUUID(), reference: `SIM-ANN-${String(sequence).padStart(6, '0')}`, ticketId: ticket.id,
+            ticketReference: ticket.simulation.reference, reason: input.reason.trim(), amountCents: ticket.totals.grossCents,
+            createdAt: now, requestKey: input.key, auditSeal: null };
+        state.ticketSequence = sequence;
+        state.corrections = [...(state.corrections || []), correction].slice(-1000);
+        // The frozen ticket is retained intact. Its cancellation is a distinct, auditable event.
+        return { result: correction, event: { type: 'simulation.cancelled', correction: structuredClone(correction) } };
+    }
     const draft = state.drafts.find(d => d.id === input.draftId);
     demand(draft, 'Ticket introuvable.', 404);
     if (command === 'simulate' && draft.status === 'simulated') {
@@ -139,10 +158,13 @@ function applyCommand(state, command, input, context) {
             const required = draft.lines.filter(l => l.productId === line.productId).reduce((n, l) => n + l.quantity, 0);
             demand(available && available.quantity >= required, `Stock insuffisant : ${line.name}.`, 409);
         }
+        const sequence = Number(state.ticketSequence || 0) + 1;
+        state.ticketSequence = sequence;
         draft.status = 'simulated'; draft.checkoutKey = input.key;
         draft.simulation = { label: 'SIMULATION — AUCUN ENCAISSEMENT — SANS VALEUR FISCALE', ...payment,
             tenderedCents: input.method === 'cash' ? input.tenderedCents : sum.grossCents,
-            changeCents: input.method === 'cash' ? input.tenderedCents - sum.grossCents : 0, validatedAt: now };
+            changeCents: input.method === 'cash' ? input.tenderedCents - sum.grossCents : 0,
+            reference: `SIM-${String(sequence).padStart(6, '0')}`, auditSeal: null, validatedAt: now };
     } else throw new CaisseError('Opération inconnue.', 404);
     draft.totals = totals(draft.lines); draft.updatedAt = now; draft.version++;
     return { result: draft, event: { type: command === 'simulate' ? 'simulation.frozen' : 'draft.changed', draft: structuredClone(draft) } };

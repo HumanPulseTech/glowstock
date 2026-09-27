@@ -4,7 +4,7 @@
 
 ## Ce qui fonctionne
 
-Catalogue de produits et prestations, recherche, filtres, ticket associé au rendez-vous du jour, ajout et modification des lignes, prix et TVA explicitement choisis, simulation carte/espèces/autre, rendu de monnaie, ticket figé après simulation. En cas de rendez-vous ambigu, choix manuel plutôt qu'ouverture arbitraire. La connexion ouvre toujours le tableau de bord. La caisse s'ouvre depuis le menu pour les administrateurs autorisés lorsque le pilote est activé.
+Catalogue de produits et prestations, recherche, filtres, ticket associé au rendez-vous du jour, ajout et modification des lignes, prix et TVA explicitement choisis, simulation carte/espèces/autre, rendu de monnaie, ticket figé et référencé après simulation. Une annulation de simulation est une écriture séparée, liée au ticket initial : le ticket n'est ni réécrit ni supprimé. En cas de rendez-vous ambigu, choix manuel plutôt qu'ouverture arbitraire. La connexion ouvre toujours le tableau de bord. La caisse s'ouvre depuis le menu pour les administrateurs autorisés lorsque le pilote est activé.
 
 Les prix de vente n'existent pas dans l'inventaire actuel : ils se définissent dans ce catalogue. Une prestation du planning ne reçoit un prix automatiquement que si son nom correspond exactement à un tarif unique. Sinon, la validation est bloquée jusqu'à confirmation du prix et de la TVA. Modifier un prix dans le ticket ne modifie pas le catalogue.
 
@@ -54,11 +54,11 @@ Pour désactiver : `CAISSE_ENABLED=false` côté GlowStock et redéployer cette 
 
 ## Limites et sécurité du pilote
 
-- Aucun débit du stock, connexion TPE, paiement Stripe, facture, reçu fiscal, avoir, remboursement, remise, clôture, archive fiscale ou mode hors ligne.
+- Aucun débit du stock, connexion TPE, paiement Stripe, facture, reçu fiscal, avoir ou remboursement de production, remise, archive fiscale externe ou mode hors ligne. L'ouverture/fermeture et l'annulation sont des simulations sans valeur fiscale.
 - Limites par compte : 500 tarifs, 100 tickets conservés, 100 lignes par ticket, 100 unités par ligne. Source : 1 000 produits et 200 rendez-vous maximum par jour. Pas de purge automatique ni d'administration du catalogue existant.
 - Les écritures SQL du brouillon et de son événement utilisent une même transaction, avec verrou par compte et contrôle de version. Les tests de transaction utilisent un double de base ; une véritable recette MariaDB avec concurrence et interruption reste nécessaire.
 - La simulation possède une clé d'idempotence : réessayer la même validation ne la duplique pas. Après perte réseau, l'interface relit l'état avant de continuer. Le stock lu n'est ni réservé ni garanti : la validation réelle devra gérer les écritures interservices et les reprises, pas simplement déduire ce stock après coup.
-- Le journal est chaîné par HMAC. Le vérificateur `src/verify-events.js` détecte certaines altérations et une suppression finale **si une tête de chaîne externe fiable lui est fournie**. L'ancrage externe n'est pas implémenté. Un administrateur qui contrôle la base et les clés peut réécrire les données ; ce mécanisme ne constitue pas une preuve de conformité.
+- Le journal est chaîné par HMAC. Les simulations figées, annulations et fermetures portent l'empreinte de leur événement et sont relues par le vérificateur. Celui-ci détecte certaines altérations et une suppression finale **si une tête de chaîne externe fiable lui est fournie**. L'ancrage externe n'est pas implémenté. Un administrateur qui contrôle la base et les clés peut réécrire les données ; ce mécanisme ne constitue pas une preuve de conformité.
 - Les captures de démo sont fictives. Les bases pilotes connectées à de vrais comptes contiennent des noms de clientes : limiter les accès et définir la conservation avant tout essai réel.
 
 Voir [la feuille de route fiscale](READINESS.md) avant toute évolution vers les encaissements réels.

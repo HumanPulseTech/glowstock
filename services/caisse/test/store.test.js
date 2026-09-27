@@ -48,7 +48,7 @@ test('SQL store verifies the persisted audit chain against its current head', as
     };
     const store = new SqlStore({ getConnection: async () => connection }, 'audit-test-key');
     const result = await store.verify('42');
-    assert.deepEqual(result, { ok: true, eventCount: 0, sequence: 0, sealedClosures: 0, scope: 'sql-audit-chain' });
+    assert.deepEqual(result, { ok: true, eventCount: 0, sequence: 0, sealedClosures: 0, sealedTickets: 0, sealedCorrections: 0, scope: 'sql-audit-chain' });
     assert.deepEqual(calls, ['begin', 'commit', 'release']);
 });
 test('SQL store seals a closing report with its immutable event MAC', async () => {
