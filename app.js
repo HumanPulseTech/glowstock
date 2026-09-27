@@ -28,6 +28,7 @@ const { refreshSessionActivity } = require('./security/session-activity.js');
 const { createSocketGuard } = require('./security/socket-guard.js');
 const caisse = require('./integrations/caisse.js');
 const crm = require('./integrations/crm.js');
+const invoices = require('./integrations/invoices.js');
 const trustProxy = process.env.TRUST_PROXY === undefined
     ? isProduction
     : ['1', 'true', 'yes'].includes(String(process.env.TRUST_PROXY).toLowerCase());
@@ -190,6 +191,7 @@ app.post('/api/auth/verify', requireSameOrigin, express.json({ limit: '1kb' }), 
 app.use('/api/caisse', caisse.createCaisseRouter({ getPool, hasPermission, getSubscriptionStatus, requireSameOrigin, limitRequest }));
 app.use('/api/crm', crm.createCrmRouter({ getPool, hasPermission, getSubscriptionStatus, requireSameOrigin, limitRequest }));
 app.use('/api/products', crm.createProductPriceRouter({ getPool, hasPermission, getSubscriptionStatus, requireSameOrigin, limitRequest }));
+app.use('/api/invoices', invoices.createInvoiceRouter({ getPool, hasPermission, getSubscriptionStatus, requireSameOrigin, limitRequest }));
 
 function requireApiAuth(req, res, next) {
     if (!req.session?.userId) return res.status(401).json({ error: 'Session expirée.' });
@@ -436,6 +438,7 @@ app.get('/dashboard/caisse/', requireAuth, caisse.requireCaisseAccess({ hasPermi
     res.sendFile(path.join(__dirname, 'template/caisse.html'));
 });
 app.get(['/dashboard/clientes/', '/dashboard/prestations/'], requireAuth, caisse.requireCaisseAccess({ hasPermission, getSubscriptionStatus }), (req, res) => res.sendFile(path.join(__dirname, 'template/crm.html')));
+app.get('/dashboard/factures/', requireAuth, caisse.requireCaisseAccess({ hasPermission, getSubscriptionStatus }), (req, res) => res.sendFile(path.join(__dirname, 'template/factures.html')));
 
 app.get('/dashboard/webcam/', requireAuth, requirePermission('inventory'), requireSubscription('full'), requireFeature('scanner'), (req, res) => {
     res.sendFile(path.join(__dirname, 'template/test.html'))
