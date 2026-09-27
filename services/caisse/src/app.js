@@ -1,6 +1,7 @@
 const express = require('express');
 const { verifyRequest } = require('./signing');
-const { CaisseError, applyCommand, view } = require('./domain');
+const { CaisseError } = require('./errors');
+const { applyCommand, view } = require('./domain');
 function createApp({ store, secret }) {
     if (!secret || secret.length < 48) throw new Error('CAISSE_BRIDGE_SECRET: minimum 48 caractères aléatoires.');
     const app = express();

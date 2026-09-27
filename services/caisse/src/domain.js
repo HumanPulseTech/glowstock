@@ -1,7 +1,6 @@
 const { randomUUID } = require('node:crypto');
-class CaisseError extends Error {
-    constructor(message, status = 400) { super(message); this.status = status; }
-}
+const { CaisseError } = require('./errors');
+const { manualPayment } = require('./payment-record');
 const demand = (valid, message, status) => { if (!valid) throw new CaisseError(message, status); };
 const integer = (value, min, max) => Number.isSafeInteger(value) && value >= min && value <= max;
 const name = value => typeof value === 'string' && value.trim().length > 0 && value.trim().length <= 150;
@@ -131,8 +130,8 @@ function applyCommand(state, command, input, context) {
     } else if (command === 'simulate') {
         demand(typeof input.key === 'string' && /^[a-f0-9-]{36}$/.test(input.key), 'Clé de validation manquante.');
         demand(draft.lines.length && !totals(draft.lines).needsPrice, 'Complète les prix et la TVA avant de continuer.');
-        demand(['card', 'cash', 'other'].includes(input.method), 'Mode de règlement invalide.');
         const sum = totals(draft.lines);
+        const payment = manualPayment(input, sum.grossCents);
         demand(input.method !== 'cash' || integer(input.tenderedCents, sum.grossCents, 1000000000), 'Montant reçu insuffisant.');
         // Stock checked for UX only. This pilot NEVER changes production inventory.
         for (const line of draft.lines.filter(l => l.kind === 'product')) {
@@ -141,7 +140,7 @@ function applyCommand(state, command, input, context) {
             demand(available && available.quantity >= required, `Stock insuffisant : ${line.name}.`, 409);
         }
         draft.status = 'simulated'; draft.checkoutKey = input.key;
-        draft.simulation = { label: 'SIMULATION — AUCUN ENCAISSEMENT — SANS VALEUR FISCALE', method: input.method,
+        draft.simulation = { label: 'SIMULATION — AUCUN ENCAISSEMENT — SANS VALEUR FISCALE', ...payment,
             tenderedCents: input.method === 'cash' ? input.tenderedCents : sum.grossCents,
             changeCents: input.method === 'cash' ? input.tenderedCents - sum.grossCents : 0, validatedAt: now };
     } else throw new CaisseError('Opération inconnue.', 404);

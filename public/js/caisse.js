@@ -219,12 +219,13 @@
     $('checkout').onclick = () => { state.paymentKey = crypto.randomUUID(); $('payment_form').reset(); $('payment_form').querySelector('.form-error').textContent = ''; $('cash_label').hidden = true; $('cash_amount').required = false; $('change_due').textContent = ''; $('payment_total').textContent = money(state.draft.totals.grossCents); $('payment_dialog').showModal(); };
     function updateCash() {
         const cash = document.querySelector('[name=method]:checked').value === 'cash'; $('cash_label').hidden = !cash; $('cash_amount').required = cash;
+        $('terminal_reference_label').hidden = cash;
         try { const change = cents($('cash_amount').value || '0') - state.draft.totals.grossCents; $('change_due').textContent = cash ? change >= 0 ? `Monnaie à rendre : ${money(change)}` : `Il manque ${money(-change)}` : ''; } catch { $('change_due').textContent = ''; }
     }
     document.querySelectorAll('[name=method]').forEach(input => input.onchange = updateCash); $('cash_amount').oninput = updateCash;
     $('payment_form').onsubmit = event => { event.preventDefault(); void action(async () => {
         const method = document.querySelector('[name=method]:checked').value;
-        await mutate('simulate', { key: state.paymentKey, method, tenderedCents: method === 'cash' ? cents($('cash_amount').value) : undefined }); $('payment_dialog').close();
+        await mutate('simulate', { key: state.paymentKey, method, terminalReference: $('terminal_reference').value, tenderedCents: method === 'cash' ? cents($('cash_amount').value) : undefined }); $('payment_dialog').close();
     }, event.currentTarget); };
     $('cash_open_form').onsubmit = event => { event.preventDefault(); void action(async () => {
         await api('cash-open', { key: crypto.randomUUID(), openingCents: cents($('opening_amount').value) });

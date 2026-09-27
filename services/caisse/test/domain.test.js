@@ -49,7 +49,7 @@ test('simulated cash validation is frozen and idempotent with exact change', () 
     assert.throws(() => applyCommand(state, 'simulate', { draftId: draft.id, version: draft.version, key, method: 'cash', tenderedCents: 5000 }, context), /insuffisant/);
     const input = { draftId: draft.id, version: draft.version, key, method: 'cash', tenderedCents: 6000 };
     const first = applyCommand(state, 'simulate', input, context).result;
-    assert.equal(first.simulation.changeCents, 500); assert.match(first.simulation.label, /SANS VALEUR FISCALE/);
+    assert.equal(first.simulation.changeCents, 500); assert.equal(first.simulation.provider, 'manual'); assert.match(first.simulation.label, /SANS VALEUR FISCALE/);
     assert.equal(applyCommand(state, 'simulate', input, context).result.id, first.id);
     assert.throws(() => applyCommand(state, 'line', { draftId: draft.id, version: first.version, quantity: 0, lineId: first.lines[0].id }, context), /figé/);
 });
