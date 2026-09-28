@@ -2,6 +2,7 @@ const Stripe = require('stripe');
 const { getPool } = require('./db.js');
 const { ensureSchema: ensureOffersSchema, listOffers } = require('./marketingOffers.js');
 const serverLogger = require('./serverLogger.js');
+const { ensureSchema: ensureFinanceOutboxSchema, enqueueInvoicePaid, enqueueRefund } = require('./financeOutbox.js');
 
 let schemaPromise = null;
 let stripeClient = null;
@@ -86,6 +87,7 @@ async function ensureSchema() {
         let connexion;
         try {
             await ensureOffersSchema();
+            await ensureFinanceOutboxSchema();
             connexion = await (await getPool()).getConnection();
             await connexion.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_amount DECIMAL(10,2) NULL AFTER date_abo');
             await connexion.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_credit DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER subscription_amount');
@@ -313,6 +315,18 @@ async function syncInvoicePaid(connexion, invoice) {
          WHERE id = ?`,
         [periodEnd, getSubscriptionAmount(subscription), nextCredit, nextSyncedCredit, customerId, subscriptionId, subscription?.status || 'active', getSubscriptionPriceId(subscription) || null, `${periodEnd} 00:00:00`, user.id]
     );
+    // Same transaction as the Stripe state update. Finance is delivered asynchronously by its outbox worker.
+    await enqueueInvoicePaid(connexion, invoice);
+}
+
+async function syncRefundCreated(connexion, refund) {
+    const chargeId = cleanId(refund?.charge);
+    if (!chargeId) return;
+    const charge = await getStripe().charges.retrieve(chargeId);
+    const invoiceId = cleanId(charge?.invoice);
+    if (!invoiceId) return; // A non-invoice Stripe refund is outside GlowStock subscription revenue.
+    const invoice = await getStripe().invoices.retrieve(invoiceId);
+    await enqueueRefund(connexion, refund, invoice);
 }
 
 async function syncSubscriptionUpdate(connexion, subscription, deleted = false) {
@@ -366,6 +380,9 @@ async function processWebhookEvent(event) {
                     break;
                 case 'invoice.payment_failed':
                     await syncInvoiceFailed(connexion, event.data.object);
+                    break;
+                case 'refund.created':
+                    await syncRefundCreated(connexion, event.data.object);
                     break;
                 case 'customer.subscription.updated':
                     await syncSubscriptionUpdate(connexion, event.data.object);

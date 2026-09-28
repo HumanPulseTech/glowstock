@@ -29,6 +29,7 @@ const { createSocketGuard } = require('./security/socket-guard.js');
 const caisse = require('./integrations/caisse.js');
 const crm = require('./integrations/crm.js');
 const invoices = require('./integrations/invoices.js');
+const financeOutbox = require('./Miku/financeOutbox.js');
 const trustProxy = process.env.TRUST_PROXY === undefined
     ? isProduction
     : ['1', 'true', 'yes'].includes(String(process.env.TRUST_PROXY).toLowerCase());
@@ -197,6 +198,13 @@ function requireApiAuth(req, res, next) {
     if (!req.session?.userId) return res.status(401).json({ error: 'Session expirée.' });
     next();
 }
+
+app.get('/api/finance/outbox-status', requireApiAuth, requireSameOrigin, async (req, res, next) => {
+    try {
+        if (!(await hasPermission(req.session.userId, 'manage_subscriptions'))) return res.sendStatus(403);
+        res.json({ enabled: financeOutbox.enabled(), configured: Boolean(financeOutbox.config()), rows: await financeOutbox.getStats() });
+    } catch (error) { next(error); }
+});
 
 function requireBillingOrigin(req, res, next) {
     let publicUrl = '';
@@ -490,6 +498,10 @@ http.listen(port, '0.0.0.0', () => {
     void ensureStripeSchema()
         .then(() => serverLogger.info('stripe.schema.ready', 'Schéma Stripe prêt.'))
         .catch((error) => serverLogger.error('stripe.schema.failed', 'Impossible de préparer le schéma Stripe.', { code: error?.code || null, message: error?.message || null }));
+    if (financeOutbox.enabled()) {
+        if (financeOutbox.config()) financeOutbox.startWorker();
+        else void serverLogger.warn('finance.outbox.not_configured', 'Outbox Finance activée mais credentials absents ou invalides ; les événements restent en attente.', {});
+    }
     const millisecondsUntilOneAmParis = () => {
         const parisNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
         const nextRun = new Date(parisNow);
