@@ -447,7 +447,7 @@ app.get('/dashboard/planning/', requireAuth, requirePermission('dashboard'), req
 app.get('/dashboard/caisse/', requireAuth, caisse.requireCaisseAccess({ hasPermission, getSubscriptionStatus }), (req, res) => {
     res.sendFile(path.join(__dirname, 'template/caisse.html'));
 });
-app.get(['/dashboard/clientes/', '/dashboard/prestations/'], requireAuth, caisse.requireCaisseAccess({ hasPermission, getSubscriptionStatus }), (req, res) => res.sendFile(path.join(__dirname, 'template/crm.html')));
+app.get(['/dashboard/clientes/', '/dashboard/prestations/'], requireAuth, requirePermission('dashboard'), requireSubscription('full'), (req, res) => res.sendFile(path.join(__dirname, 'template/crm.html')));
 app.get('/dashboard/factures/', requireAuth, caisse.requireCaisseAccess({ hasPermission, getSubscriptionStatus }), (req, res) => res.sendFile(path.join(__dirname, 'template/factures.html')));
 
 app.get('/dashboard/webcam/', requireAuth, requirePermission('inventory'), requireSubscription('full'), requireFeature('scanner'), (req, res) => {

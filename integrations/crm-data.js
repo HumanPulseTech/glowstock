@@ -23,6 +23,15 @@ function customerInput(input = {}) {
     if (result.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result.email)) throw new InputError('Adresse e-mail invalide.');
     return result;
 }
+function profileInput(input = {}) {
+    return { preferences: field(input.preferences, 4000), observations: field(input.observations, 4000) };
+}
+function consentInput(input = {}) {
+    const type = field(input.type, 100, true), details = field(input.details, 500);
+    const action = input.action === 'granted' || input.action === 'revoked' ? input.action : '';
+    if (!action) throw new InputError('Le consentement doit être accordé ou retiré explicitement.');
+    return { type, details, action };
+}
 function serviceInput(input = {}) {
     const result = { name: field(input.name, 150, true), priceCents: priceCents(input.price, false), description: field(input.description, 2000), duration: Number(input.duration), taxMode: input.taxMode, taxBps: Number(input.taxBps) };
     if (!Number.isInteger(result.duration) || result.duration < 5 || result.duration > 480) throw new InputError('Durée attendue : de 5 à 480 minutes.');
@@ -48,4 +57,4 @@ async function crmContext(pool, userId) {
         return { customers: customers.map(c => ({ id: Number(c.id), name: c.name })), services: services.map(s => ({ id: `service-${s.id}`, serviceId: Number(s.id), kind: 'service', productId: null, name: s.name, unitCents: Number(s.price_cents), taxMode: s.tax_mode, taxBps: Number(s.tax_bps) })), links };
     } catch (e) { if (e.code === 'ER_NO_SUCH_TABLE') return { customers: [], services: [], links: [] }; throw e; }
 }
-module.exports = { InputError, priceCents, customerInput, serviceInput, productPrices, saveProductPrice, crmContext };
+module.exports = { InputError, priceCents, customerInput, profileInput, consentInput, serviceInput, productPrices, saveProductPrice, crmContext };
