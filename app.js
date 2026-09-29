@@ -30,6 +30,7 @@ const caisse = require('./integrations/caisse.js');
 const crm = require('./integrations/crm.js');
 const invoices = require('./integrations/invoices.js');
 const stockImport = require('./integrations/stockImport.js');
+const booking = require('./integrations/booking.js');
 const financeOutbox = require('./Miku/financeOutbox.js');
 const trustProxy = process.env.TRUST_PROXY === undefined
     ? isProduction
@@ -195,6 +196,8 @@ app.use('/api/crm', crm.createCrmRouter({ getPool, hasPermission, getSubscriptio
 app.use('/api/products', crm.createProductPriceRouter({ getPool, hasPermission, getSubscriptionStatus, requireSameOrigin, limitRequest }));
 app.use('/api/invoices', invoices.createInvoiceRouter({ getPool, hasPermission, getSubscriptionStatus, requireSameOrigin, limitRequest }));
 app.use('/api/inventory/imports', stockImport.createRouter({ getPool, hasPermission, getSubscriptionStatus, requireSameOrigin, limitRequest }));
+app.use('/api/booking', booking.createPublicRouter({ getPool, limitRequest }));
+app.use('/api/booking-admin', booking.createAdminRouter({ getPool, hasPermission, getSubscriptionStatus, requireSameOrigin }));
 
 function requireApiAuth(req, res, next) {
     if (!req.session?.userId) return res.status(401).json({ error: 'Session expirée.' });
@@ -448,6 +451,9 @@ app.get('/dashboard/caisse/', requireAuth, caisse.requireCaisseAccess({ hasPermi
     res.sendFile(path.join(__dirname, 'template/caisse.html'));
 });
 app.get(['/dashboard/clientes/', '/dashboard/prestations/'], requireAuth, requirePermission('dashboard'), requireSubscription('full'), (req, res) => res.sendFile(path.join(__dirname, 'template/crm.html')));
+app.get('/dashboard/reservations/', requireAuth, requirePermission('dashboard'), requireSubscription('full'), (req, res) => res.sendFile(path.join(__dirname, 'template/reservations.html')));
+app.get('/reservation/:slug', (req, res) => res.sendFile(path.join(__dirname, 'template/reservation.html')));
+app.get('/annulation/', (req, res) => res.sendFile(path.join(__dirname, 'template/booking-cancel.html')));
 app.get('/dashboard/factures/', requireAuth, caisse.requireCaisseAccess({ hasPermission, getSubscriptionStatus }), (req, res) => res.sendFile(path.join(__dirname, 'template/factures.html')));
 
 app.get('/dashboard/webcam/', requireAuth, requirePermission('inventory'), requireSubscription('full'), requireFeature('scanner'), (req, res) => {
