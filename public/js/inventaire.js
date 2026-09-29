@@ -167,6 +167,95 @@ socket.on('inventory import error', (message) => {
     alert(message || 'Impossible d’importer le comptage.')
 })
 
+const initialImportButton = document.getElementById('start_stock_import')
+const initialImportFile = document.getElementById('initial_stock_file')
+const importDialog = document.getElementById('stock_import_dialog')
+const importMapping = document.getElementById('stock_import_mapping')
+const importFields = document.getElementById('stock_import_fields')
+const importSample = document.getElementById('stock_import_sample')
+const importReport = document.getElementById('stock_import_report')
+const analyzeImportButton = document.getElementById('stock_import_analyze')
+const commitImportButton = document.getElementById('stock_import_commit')
+const importIntro = document.getElementById('stock_import_intro')
+let pendingStockImport = null
+
+const importFieldLabels = {
+    reference: 'Référence fournisseur *', name: 'Nom du produit *', category: 'Catégorie', supplier: 'Fournisseur / marque',
+    purchasePrice: 'Prix d’achat', salePrice: 'Prix de vente', quantity: 'Quantité initiale *', threshold: 'Seuil d’alerte', barcode: 'Code-barres'
+}
+const requestJson = async (url, options = {}) => {
+    const response = await fetch(url, { credentials: 'same-origin', ...options })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(payload.error || 'Une erreur est survenue.')
+    return payload
+}
+const clearNode = (node) => { while (node?.firstChild) node.removeChild(node.firstChild) }
+const addText = (parent, tag, text) => { const child = document.createElement(tag); child.textContent = String(text ?? ''); parent.appendChild(child); return child }
+const setImportReport = (message, error = false) => {
+    clearNode(importReport); importReport.hidden = !message; importReport.classList.toggle('error', error)
+    if (message) addText(importReport, 'p', message)
+}
+const setImportBusy = (button, busy, label) => { button.disabled = busy; button.textContent = busy ? 'Traitement…' : label }
+const renderSample = (headers, rows) => {
+    clearNode(importSample); const table = document.createElement('table'); const head = document.createElement('thead'); const headRow = document.createElement('tr')
+    headers.forEach((value) => addText(headRow, 'th', value || 'Colonne sans nom')); head.appendChild(headRow); table.appendChild(head)
+    const body = document.createElement('tbody'); rows.forEach((row) => { const tr = document.createElement('tr'); headers.forEach((_, index) => addText(tr, 'td', row[index] || '—')); body.appendChild(tr) }); table.appendChild(body); importSample.appendChild(table)
+}
+const renderMapping = (headers, suggested) => {
+    clearNode(importFields)
+    Object.entries(importFieldLabels).forEach(([field, label]) => {
+        const labelNode = document.createElement('label'); labelNode.htmlFor = `stock_import_${field}`; addText(labelNode, 'span', label)
+        const select = document.createElement('select'); select.id = `stock_import_${field}`; select.dataset.stockImportField = field
+        const ignored = document.createElement('option'); ignored.value = '-1'; ignored.textContent = 'Ne pas importer'; select.appendChild(ignored)
+        headers.forEach((column, index) => { const option = document.createElement('option'); option.value = String(index); option.textContent = column || `Colonne ${index + 1}`; if (suggested[field] === index) option.selected = true; select.appendChild(option) })
+        labelNode.appendChild(select); importFields.appendChild(labelNode)
+    })
+}
+const selectedMapping = () => Object.fromEntries([...importFields.querySelectorAll('[data-stock-import-field]')].map((input) => [input.dataset.stockImportField, Number(input.value)]))
+
+initialImportButton?.addEventListener('click', () => initialImportFile?.click())
+initialImportFile?.addEventListener('change', async () => {
+    const file = initialImportFile.files?.[0]; initialImportFile.value = ''
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) return alert('Le fichier doit peser au maximum 5 Mo.')
+    if (!/\.(csv|xlsx)$/i.test(file.name)) return alert('Choisis un fichier CSV ou XLSX.')
+    try {
+        initialImportButton.disabled = true; initialImportButton.textContent = 'Lecture du fichier…'
+        const preview = await requestJson('/api/inventory/imports/preview', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream', 'X-Import-Filename': file.name }, body: await file.arrayBuffer() })
+        pendingStockImport = preview.importId; importIntro.textContent = `${preview.rowCount} ligne(s) détectée(s). Vérifie les correspondances avant de lancer l’analyse.`
+        renderMapping(preview.headers, preview.recommendedMapping); renderSample(preview.headers, preview.sample); importMapping.hidden = false; importReport.hidden = true; analyzeImportButton.hidden = false; commitImportButton.hidden = true
+        importDialog.showModal()
+    } catch (error) { alert(error.message || 'Impossible de préparer le fichier.') }
+    finally { initialImportButton.disabled = false; initialImportButton.textContent = 'Importer un ancien stock' }
+})
+analyzeImportButton?.addEventListener('click', async () => {
+    if (!pendingStockImport) return
+    try {
+        setImportBusy(analyzeImportButton, true, 'Analyser l’import'); commitImportButton.hidden = true
+        const report = await requestJson(`/api/inventory/imports/${encodeURIComponent(pendingStockImport)}/analyze`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mapping: selectedMapping() }) })
+        const summary = `${report.valid} ligne(s) valides, ${report.existing} produit(s) déjà présents, ${report.invalid} erreur(s), ${report.barcodeConflicts} conflit(s) de code-barres.`
+        setImportReport(summary, report.invalid > 0 || report.barcodeConflicts > 0)
+        if (report.errors?.length) { const list = document.createElement('ul'); report.errors.slice(0, 10).forEach((entry) => addText(list, 'li', `Ligne ${entry.row} : ${entry.message}`)); importReport.appendChild(list) }
+        if (!report.invalid && !report.barcodeConflicts) {
+            const strategy = document.createElement('div'); strategy.className = 'stock-import-strategy'; addText(strategy, 'strong', 'Produits déjà présents :')
+            [['add_quantity', 'Ajouter la quantité importée au stock actuel'], ['update_and_add', 'Mettre à jour les informations puis ajouter la quantité'], ['skip', 'Ignorer ces produits']].forEach(([value, label]) => { const option = document.createElement('label'); const radio = document.createElement('input'); radio.type = 'radio'; radio.name = 'stock_import_strategy'; radio.value = value; if (value === 'add_quantity') radio.checked = true; option.append(radio, document.createTextNode(label)); strategy.appendChild(option) })
+            importReport.appendChild(strategy); commitImportButton.hidden = false
+        }
+    } catch (error) { setImportReport(error.message || 'Analyse impossible.', true) }
+    finally { setImportBusy(analyzeImportButton, false, 'Analyser l’import') }
+})
+commitImportButton?.addEventListener('click', async () => {
+    if (!pendingStockImport) return
+    const strategy = document.querySelector('input[name="stock_import_strategy"]:checked')?.value
+    if (!strategy) return setImportReport('Choisis le traitement des produits déjà présents.', true)
+    try {
+        setImportBusy(commitImportButton, true, 'Valider l’import')
+        const result = await requestJson(`/api/inventory/imports/${encodeURIComponent(pendingStockImport)}/commit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ strategy }) })
+        importDialog.close(); pendingStockImport = null; socket.emit('liste inv'); alert(`Import terminé : ${result.created} créé(s), ${result.updated} mis à jour, ${result.skipped} ignoré(s).`)
+    } catch (error) { setImportReport(error.message || 'Validation impossible.', true) }
+    finally { setImportBusy(commitImportButton, false, 'Valider l’import') }
+})
+
 socket.on('auth error', () => window.location.assign('/connexion/'));
 socket.on('subscription blocked', (level) => window.location.assign(`/abonnement-expire/?mode=${level === 'limited' ? 'limite' : 'expire'}`));
 

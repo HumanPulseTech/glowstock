@@ -29,6 +29,7 @@ const { createSocketGuard } = require('./security/socket-guard.js');
 const caisse = require('./integrations/caisse.js');
 const crm = require('./integrations/crm.js');
 const invoices = require('./integrations/invoices.js');
+const stockImport = require('./integrations/stockImport.js');
 const financeOutbox = require('./Miku/financeOutbox.js');
 const trustProxy = process.env.TRUST_PROXY === undefined
     ? isProduction
@@ -193,6 +194,7 @@ app.use('/api/caisse', caisse.createCaisseRouter({ getPool, hasPermission, getSu
 app.use('/api/crm', crm.createCrmRouter({ getPool, hasPermission, getSubscriptionStatus, requireSameOrigin, limitRequest }));
 app.use('/api/products', crm.createProductPriceRouter({ getPool, hasPermission, getSubscriptionStatus, requireSameOrigin, limitRequest }));
 app.use('/api/invoices', invoices.createInvoiceRouter({ getPool, hasPermission, getSubscriptionStatus, requireSameOrigin, limitRequest }));
+app.use('/api/inventory/imports', stockImport.createRouter({ getPool, hasPermission, getSubscriptionStatus, requireSameOrigin, limitRequest }));
 
 function requireApiAuth(req, res, next) {
     if (!req.session?.userId) return res.status(401).json({ error: 'Session expirée.' });

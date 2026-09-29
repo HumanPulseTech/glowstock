@@ -89,7 +89,9 @@
 
           <div class="actions">
             <button id="export_inventory_csv" type="button" class="btn-ghost" disabled>Exporter CSV</button>
-            <button id="import_inventory_csv" type="button" class="btn-ghost" data-subscription-full data-feature="products">Importer</button>
+            <button id="start_stock_import" type="button" class="btn-ghost" data-subscription-full data-feature="products">Importer un ancien stock</button>
+            <input id="initial_stock_file" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+            <button id="import_inventory_csv" type="button" class="btn-ghost" data-subscription-full data-feature="products">Comptage CSV</button>
             <input id="import_inventory_file" type="file" accept=".csv,text/csv" hidden>
             <button type="button" data-create-product data-subscription-full data-feature="products" class="btn">+ Nouveau produit</button>
           </div>
@@ -174,6 +176,27 @@
       </section>
     </main>
   </div>
+  <dialog id="stock_import_dialog" class="stock-import-dialog" aria-labelledby="stock_import_title">
+    <form method="dialog" class="stock-import-shell">
+      <header>
+        <div><span class="eyebrow">Import initial</span><h2 id="stock_import_title">Reprendre ton ancien stock</h2></div>
+        <button class="dialog-close" aria-label="Fermer">×</button>
+      </header>
+      <p id="stock_import_intro">Choisis un CSV ou un fichier Excel (.xlsx). Tu vérifieras chaque colonne avant de modifier le catalogue.</p>
+      <section id="stock_import_mapping" hidden>
+        <h3>Correspondance des colonnes</h3>
+        <p>Les champs marqués * sont obligatoires. Aucune donnée n’est importée avant la validation finale.</p>
+        <div id="stock_import_fields" class="stock-import-fields"></div>
+        <h3>Aperçu des premières lignes</h3>
+        <div id="stock_import_sample" class="stock-import-table" tabindex="0"></div>
+      </section>
+      <section id="stock_import_report" hidden aria-live="polite"></section>
+      <footer>
+        <button id="stock_import_analyze" type="button" class="btn" hidden>Analyser l’import</button>
+        <button id="stock_import_commit" type="button" class="btn" hidden>Valider l’import</button>
+      </footer>
+    </form>
+  </dialog>
 </body>
         <script src="/socket.io/socket.io.js"></script>
         <script src="/js/socket-client.js"></script>

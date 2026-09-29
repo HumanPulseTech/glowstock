@@ -622,3 +622,28 @@
       .headline-card h2 { font-size: 28px; }
       table { display: block; overflow-x: auto; }
     }
+
+    .stock-import-dialog { width: min(860px, calc(100vw - 28px)); max-height: min(860px, calc(100vh - 28px)); padding: 0; border: 0; border-radius: 24px; box-shadow: 0 24px 70px rgba(30, 45, 35, .25); color: var(--ink); }
+    .stock-import-dialog::backdrop { background: rgba(22, 31, 25, .45); backdrop-filter: blur(3px); }
+    .stock-import-shell { padding: 26px; }
+    .stock-import-shell header { display: flex; justify-content: space-between; align-items: start; gap: 20px; border-bottom: 1px solid var(--border); padding-bottom: 18px; }
+    .stock-import-shell h2, .stock-import-shell h3 { margin: 0; }
+    .stock-import-shell h2 { font-size: 24px; }
+    .stock-import-shell h3 { font-size: 15px; margin-top: 22px; }
+    .stock-import-shell p { color: var(--muted); line-height: 1.5; }
+    .eyebrow { display: block; margin-bottom: 5px; color: var(--sage-hover); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+    .dialog-close { border: 0; background: transparent; color: var(--muted); font-size: 30px; line-height: 1; cursor: pointer; }
+    .stock-import-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+    .stock-import-fields label { display: grid; gap: 6px; font-size: 13px; font-weight: 700; }
+    .stock-import-fields select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--ink); }
+    .stock-import-table { overflow: auto; max-height: 220px; border: 1px solid var(--border); border-radius: 12px; }
+    .stock-import-table table { width: 100%; min-width: 540px; border-collapse: collapse; font-size: 12px; }
+    .stock-import-table th, .stock-import-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+    .stock-import-table th { background: var(--surface-2); font-weight: 800; }
+    .stock-import-report { margin-top: 20px; padding: 15px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-2); }
+    .stock-import-report.error { border-color: #e3b5ae; background: var(--danger-bg); }
+    .stock-import-report ul { margin: 10px 0 0; padding-left: 20px; color: var(--muted); }
+    .stock-import-strategy { display: grid; gap: 8px; margin-top: 14px; }
+    .stock-import-strategy label { display: flex; gap: 8px; align-items: center; color: var(--ink); font-size: 14px; }
+    .stock-import-shell footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+    @media (max-width: 600px) { .stock-import-shell { padding: 20px; } .stock-import-fields { grid-template-columns: 1fr; } .stock-import-dialog { width: calc(100vw - 16px); } .stock-import-shell footer { justify-content: stretch; } .stock-import-shell footer .btn { flex: 1; } }
