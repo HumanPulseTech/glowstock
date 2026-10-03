@@ -35,10 +35,11 @@ function createApp({ store, secret }) {
         try {
             const command = req.params.command;
             if (command === 'checkout') return res.status(501).json({ error: 'Encaissement réel indisponible : pilote non validé fiscalement.' });
-            if (!['workspace', 'catalog', 'open', 'add', 'line', 'customer', 'simulate', 'cancel', 'cash-open', 'cash-close', 'audit-verify'].includes(command)) return res.sendStatus(404);
+            if (!['workspace', 'catalog', 'open', 'add', 'line', 'customer', 'simulate', 'cancel', 'cash-open', 'cash-close', 'audit-verify', 'gift-card-check'].includes(command)) return res.sendStatus(404);
             if (command === 'audit-verify') return res.json(await store.verify(req.identity.tenant));
             const context = req.payload?.context;
             if (!context || !Array.isArray(context.products) || !Array.isArray(context.appointments) || context.products.length > 1000 || context.appointments.length > 200) throw new CaisseError('Contexte invalide.');
+            if (context.giftCard && (context.tenantId !== req.identity.tenant || context.giftCard.tenantId !== req.identity.tenant)) throw new CaisseError('Carte cadeau étrangère à cet établissement.', 403);
             const result = await store.run(req.identity.tenant, req.identity.actor, state => command === 'workspace'
                 ? { result: view(state, context) } : applyCommand(state, command, req.payload.input, context));
             res.json(result);

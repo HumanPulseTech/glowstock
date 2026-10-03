@@ -1,6 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { SqlStore, eventMac } = require('../src/store');
+const { initialState, applyCommand } = require('../src/domain');
+const { randomUUID } = require('node:crypto');
 function fixture(failUpdate = false) {
     const calls = [];
     const connection = {
@@ -73,4 +75,45 @@ test('SQL store rolls back instead of committing an incomplete event/state chang
     const { calls, store } = fixture(true);
     await assert.rejects(store.run('42', '42', () => ({ event: { type: 'test' } })), /interruption/);
     assert.deepEqual(calls.slice(-2), ['rollback', 'release']); assert.equal(calls.includes('commit'), false);
+});
+
+test('saved gift ticket and cancellation seals verify and detect edited payment evidence', async () => {
+    const context = { tenantId: '42', products: [], appointments: [],
+        services: [{ id: 'service-1', kind: 'service', name: 'Pose', unitCents: 3000, taxMode: 'exempt', taxBps: 0 }],
+        giftCard: { id: 'gift-1', tenantId: '42', code: 'GS-0123456789AB', availableCents: 5000, status: 'active', expiresAt: null } };
+    const initial = initialState();
+    const draft = applyCommand(initial, 'open', { key: randomUUID() }, context).result;
+    applyCommand(initial, 'add', { draftId: draft.id, version: draft.version, catalogId: 'service-1' }, context);
+    let record = { data: JSON.stringify(initial), sequence_no: 0, last_mac: '' };
+    const events = [];
+    const connection = {
+        beginTransaction: async () => {}, commit: async () => {}, rollback: async () => {}, release: () => {},
+        query: async (sql, args) => {
+            if (sql.includes('FROM caisse_state')) return [[structuredClone(record)]];
+            if (sql.includes('FROM caisse_events')) return [[...events]];
+            if (sql.startsWith('INSERT INTO caisse_events')) {
+                const [tenant_id, sequence_no, actor_id, occurred_at, payload, previous_mac, mac] = args;
+                events.push({ tenant_id, sequence_no, actor_id, occurred_at, payload, previous_mac, mac });
+            }
+            if (sql.startsWith('UPDATE caisse_state')) record = { data: args[0], sequence_no: args[1], last_mac: args[2] };
+            return [{}];
+        }
+    };
+    const store = new SqlStore({ getConnection: async () => connection }, 'isolated-audit-test-key');
+    await store.run('42', '42', state => applyCommand(state, 'simulate', { draftId: draft.id, version: draft.version,
+        key: randomUUID(), method: 'card', giftCardCode: context.giftCard.code, giftCardAmountCents: 2000 }, context));
+    assert.equal((await store.verify('42')).ok, true, 'Null seal placeholder in event is not payment data');
+    const savedTicket = record.data;
+    const modified = JSON.parse(record.data);
+    modified.drafts[0].simulation.giftCard.amountCents = 1;
+    record.data = JSON.stringify(modified);
+    assert.equal((await store.verify('42')).ok, false, 'Gift payment mutation is detected');
+    record.data = savedTicket;
+    await store.run('42', '42', state => applyCommand(state, 'cancel', { ticketId: draft.id, key: randomUUID(), reason: 'Annulation test' }, context));
+    const valid = await store.verify('42');
+    assert.equal(valid.ok, true); assert.equal(valid.sealedTickets, 1); assert.equal(valid.sealedCorrections, 1);
+    const editedCorrection = JSON.parse(record.data);
+    editedCorrection.corrections[0].giftCardRefundCents = 1;
+    record.data = JSON.stringify(editedCorrection);
+    assert.equal((await store.verify('42')).ok, false, 'Gift cancellation mutation is detected');
 });

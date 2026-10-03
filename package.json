@@ -26,8 +26,9 @@
     "jquery": "^3.6.0",
     "mariadb": "^3.5.2",
     "mysql2": "^3.24.4",
-    "nodemon": "^3.1.7",
     "path": "^0.12.7",
+    "pdfkit": "^0.20.2",
+    "qrcode": "^1.5.4",
     "socket.io": "^4.8.0",
     "stripe": "^22.5.0"
   },
@@ -38,5 +39,8 @@
     "socket.io-parser": "4.2.7",
     "ws": "8.21.0",
     "uuid": "11.1.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }

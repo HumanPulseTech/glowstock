@@ -73,7 +73,7 @@ test('cash-session opening and closing record counted cash without fiscal treatm
     const closeKey = randomUUID();
     const closed = applyCommand(state, 'cash-close', { key: closeKey, sessionId: opened.id, closingCents: 8100 }, context).result;
     assert.equal(closed.status, 'closed'); assert.equal(closed.expectedCents, 8000); assert.equal(closed.differenceCents, 100);
-    assert.deepEqual(closed.payments, { ticketCount: 1, cardCents: 0, cashCents: 5500, otherCents: 0 }); assert.equal(state.cashClosures.length, 1);
+    assert.deepEqual(closed.payments, { ticketCount: 1, cardCents: 0, cashCents: 5500, otherCents: 0, giftCardCents: 0 }); assert.equal(state.cashClosures.length, 1);
     assert.equal(applyCommand(state, 'cash-close', { key: closeKey, sessionId: opened.id, closingCents: 8100 }, context).result.id, opened.id);
 });
 test('simulation checks product stock but never changes source inventory', () => {

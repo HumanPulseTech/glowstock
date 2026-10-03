@@ -26,11 +26,18 @@ async function main() {
         await page.locator('#payment_dialog').getByRole('button', { name: 'Fermer' }).click();
         await page.locator('#checkout').click();
         assert.equal(await page.locator('#cash_amount').evaluate(el => el.required), false);
+        await page.getByText('Ajouter une carte cadeau', { exact: true }).click();
+        await page.locator('#gift_code').fill('GS-00000000000000000000000000000001');
+        await page.locator('#gift_check').click();
+        await page.waitForFunction(() => document.querySelector('#gift_summary').textContent.includes('50,00'));
+        await page.locator('#gift_amount').fill('20');
+        assert.match(await page.locator('#payment_residual').innerText(), /47,00/);
         await page.getByRole('button', { name: 'Confirmer la simulation' }).click();
         await page.waitForFunction(() => document.querySelector('#draft_status').textContent === 'Simulation figée');
         assert.equal(await page.locator('#checkout').isDisabled(), true);
         const workspace = await page.evaluate(async () => (await fetch('/api/caisse/workspace', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).json());
         assert.equal(workspace.products.find(p => p.id === 1).quantity, 12);
+        assert.equal(workspace.drafts.find(d => d.appointmentId === 1).simulation.giftCard.amountCents, 2000);
         await page.setViewportSize({ width: 390, height: 844 });
         await page.reload();
         await page.locator('#appointments_dialog[open]').waitFor();
@@ -40,8 +47,17 @@ async function main() {
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'No mobile horizontal overflow');
         await page.locator('#mobile_cart').click();
         await page.locator('#checkout').click();
+        await page.getByText('Ajouter une carte cadeau', { exact: true }).click();
+        await page.locator('#gift_code').fill('GS-00000000000000000000000000000001');
+        await page.locator('#gift_check').click();
+        await page.waitForFunction(() => document.querySelector('#gift_summary').textContent.includes('30,00'));
+        assert.match(await page.locator('#gift_summary').innerText(), /solde réel inchangé : 50,00/);
+        await page.locator('#gift_amount').fill('10');
         await page.getByRole('radio', { name: 'Espèces' }).check();
-        await page.locator('#cash_amount').fill('50');
+        await page.locator('#cash_amount').fill('40');
+        assert.match(await page.locator('#payment_residual').innerText(), /35,00/);
+        await page.screenshot({ path: path.join(output, 'mobile-gift-payment.png'), fullPage: true });
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'Gift dialog fits mobile');
         await page.getByRole('button', { name: 'Confirmer la simulation' }).click();
         await page.waitForFunction(() => document.querySelector('#ticket_note').textContent.includes('5,00'));
         // The real inventory read remains visible even when the cashier service is unavailable.
@@ -58,7 +74,7 @@ async function main() {
         assert.equal(await page.locator('#catalog .item-card').count(), 1);
         assert.equal(await page.locator('#catalog .item-card').isDisabled(), true);
         assert.deepEqual(errors, []);
-        console.log('UI desktop/mobile: prefill, product, totals, payment reset, freeze, stock unchanged, cash change and overflow checks passed.');
+        console.log('UI desktop/mobile: prefill, product, totals, gift partial/mixed payments, unchanged real balance/stock, cash change, reset, freeze and overflow checks passed.');
     } finally { if (browser) await browser.close(); await demo.close(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

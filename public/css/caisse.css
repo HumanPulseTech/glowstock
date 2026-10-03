@@ -11,3 +11,4 @@
 @media(max-width:380px){.cash-session-actions{grid-template-columns:1fr}.cash-report-data{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 textarea{font:inherit;touch-action:manipulation}.form-grid textarea{height:100px;border:1px solid var(--line);border-radius:9px;background:white;color:var(--ink);padding:10px;min-width:0;width:100%;resize:vertical}textarea:focus-visible{outline:3px solid #b7864b;outline-offset:4px}
+.gift-payment{border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0}.gift-payment summary{font-size:13px;font-weight:600;cursor:pointer;min-height:28px}.gift-payment[open] summary{margin-bottom:14px}.gift-payment .small{overflow-wrap:anywhere}.payment-methods{flex-wrap:wrap}

@@ -78,6 +78,7 @@ class SqlStore {
                     let payload;
                     try { payload = event && JSON.parse(event.payload); } catch { sealsMatch = false; break; }
                     const report = { ...closure }; delete report.auditSeal;
+                    if (payload?.session) delete payload.session.auditSeal;
                     if (payload?.type !== 'cash_session.closed' || JSON.stringify(payload.session) !== JSON.stringify(report)) { sealsMatch = false; break; }
                 }
                 for (const ticket of data?.drafts || []) {
@@ -87,6 +88,7 @@ class SqlStore {
                     let payload;
                     try { payload = event && JSON.parse(event.payload); } catch { sealsMatch = false; break; }
                     const record = structuredClone(ticket); delete record.simulation.auditSeal;
+                    if (payload?.draft?.simulation) delete payload.draft.simulation.auditSeal;
                     if (payload?.type !== 'simulation.frozen' || JSON.stringify(payload.draft) !== JSON.stringify(record)) { sealsMatch = false; break; }
                 }
                 for (const correction of data?.corrections || []) {
@@ -96,6 +98,7 @@ class SqlStore {
                     let payload;
                     try { payload = event && JSON.parse(event.payload); } catch { sealsMatch = false; break; }
                     const record = { ...correction }; delete record.auditSeal;
+                    if (payload?.correction) delete payload.correction.auditSeal;
                     if (payload?.type !== 'simulation.cancelled' || JSON.stringify(payload.correction) !== JSON.stringify(record)) { sealsMatch = false; break; }
                 }
             }

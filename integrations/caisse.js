@@ -1,6 +1,6 @@
 const express = require('express');
 const { signRequest } = require('../services/caisse/src/signing');
-const { productPrices, crmContext } = require('./crm-data');
+const { productPrices, crmContext, InputError } = require('./crm-data');
 const enabled = () => process.env.CAISSE_ENABLED === 'true';
 async function hasCaisseAccess(userId, { hasPermission, getSubscriptionStatus }) {
     // Never trust session.role or a browser flag. Recheck current database rights.
@@ -38,19 +38,25 @@ async function loadContext(getPool, userId) {
     if (products.length > 1000 || appointments.length > 200) throw new Error('CAISSE_PILOT_LIMIT');
     const minute = time => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
     const crm = await crmContext(pool, userId);
-    return { ...clock, customers: crm.customers, services: crm.services,
+    return { ...clock, tenantId: String(userId), customers: crm.customers, services: crm.services,
         products,
         appointments: appointments.map(a => ({ id: Number(a.id), clientName: a.client_name, serviceName: a.service_name || '', startTime: a.starts,
             endTime: a.ends, startMinute: minute(a.starts), endMinute: minute(a.ends),
             customerId: Number(crm.links.find(l => Number(l.appointment_id) === Number(a.id))?.customer_id) || null,
             serviceId: Number(crm.links.find(l => Number(l.appointment_id) === Number(a.id))?.service_id) || null })) };
 }
-async function callCaisse(command, input, userId, getPool) {
+async function callCaisse(command, input, userId, getPool, lookupGiftCard = null) {
     const secret = process.env.CAISSE_BRIDGE_SECRET;
     const base = new URL(process.env.CAISSE_SERVICE_URL);
     if (!secret || secret.length < 48 || !['http:', 'https:'].includes(base.protocol) || base.username || base.password || base.pathname !== '/' || base.search || base.hash) throw new Error('CAISSE_CONFIG');
     if (base.protocol !== 'https:' && process.env.CAISSE_ALLOW_PRIVATE_HTTP !== 'true') throw new Error('CAISSE_TLS_REQUIRED');
     const context = await loadContext(getPool, userId), path = `/v1/${command}`;
+    if (command === 'gift-card-check' || (command === 'simulate' && input?.giftCardCode)) {
+        const lookupCard = lookupGiftCard || require('./gift-cards').lookupCard;
+        const { card } = await lookupCard(await getPool(), userId, input.giftCardCode);
+        context.giftCard = { id: card.id, code: card.code, tenantId: String(userId), availableCents: Number(card.balance_cents),
+            expiresAt: card.expires_at, status: card.effective_status };
+    }
     const body = JSON.stringify({ context, input });
     const response = await fetch(new URL(path, base), { method: 'POST', body, headers: signRequest(secret, path, userId, userId, body), signal: AbortSignal.timeout(6000), redirect: 'error' });
     if (![200, 400, 404, 409, 501].includes(response.status)) {
@@ -59,7 +65,7 @@ async function callCaisse(command, input, userId, getPool) {
     }
     return { status: response.status, data: await response.json() };
 }
-function createCaisseRouter({ getPool, hasPermission, getSubscriptionStatus, requireSameOrigin, limitRequest }) {
+function createCaisseRouter({ getPool, hasPermission, getSubscriptionStatus, requireSameOrigin, limitRequest, lookupGiftCard }) {
     const router = express.Router();
     const access = { hasPermission, getSubscriptionStatus };
     router.get('/status', async (req, res) => {
@@ -80,11 +86,12 @@ function createCaisseRouter({ getPool, hasPermission, getSubscriptionStatus, req
         catch (error) { res.status(503).json({ error: error.message === 'CAISSE_PILOT_LIMIT' ? 'Cet inventaire dépasse la limite de 1 000 produits du pilote.' : 'Impossible de lire l’inventaire de ton compte. Réessaie dans un instant.' }); }
     });
     router.post('/:command', requireSameOrigin, express.json({ limit: '24kb' }), async (req, res) => {
-        if (!['workspace', 'catalog', 'open', 'add', 'line', 'customer', 'simulate', 'cash-open', 'cash-close', 'audit-verify'].includes(req.params.command)) return res.sendStatus(404);
+        if (!['workspace', 'catalog', 'open', 'add', 'line', 'customer', 'simulate', 'cancel', 'cash-open', 'cash-close', 'audit-verify', 'gift-card-check'].includes(req.params.command)) return res.sendStatus(404);
         try {
-            const response = await callCaisse(req.params.command, req.body, req.session.userId, getPool);
+            const response = await callCaisse(req.params.command, req.body, req.session.userId, getPool, lookupGiftCard);
             res.status(response.status).json(response.data);
         } catch (error) {
+            if (error instanceof InputError) return res.status(error.status).json({ error: error.message });
             console.warn('Caisse bridge unavailable', { command: req.params.command, code: error && error.code ? error.code : null, name: error && error.name ? error.name : null });
             res.status(503).json({ error: 'La caisse ne répond pas. Recharge le ticket avant de réessayer : la dernière action a peut-être été enregistrée.' });
         }

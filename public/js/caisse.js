@@ -96,6 +96,7 @@
         data.append(
             metric('Tickets simulés', String(report.payments?.ticketCount || 0)),
             metric('Carte / autre', `${money(report.payments?.cardCents || 0)} · ${money(report.payments?.otherCents || 0)}`),
+            metric('Cartes cadeaux simulées', money(report.payments?.giftCardCents || 0)),
             metric('Espèces attendues', money(report.expectedCents)),
             metric('Compté · écart', `${money(report.closingCents)} · ${money(report.differenceCents)}`),
             metric('Empreinte de clôture', report.auditSeal ? `${report.auditSeal.slice(0, 16)}…` : 'Fermeture antérieure')
@@ -118,6 +119,7 @@
             const when = ticket.simulation?.validatedAt ? new Date(ticket.simulation.validatedAt).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }) : 'Date indisponible';
             const correction = corrections.get(ticket.id);
             entry.append(node('strong', '', `${ticket.simulation?.reference || 'SIM'} · ${ticket.clientName} · ${money(ticket.totals.grossCents)}`), node('span', '', `${when} · ${method[ticket.simulation?.method] || 'Simulation'} · ${ticket.lines.length} ligne(s)`));
+            if (ticket.simulation?.giftCard) entry.append(node('span', 'small', `Carte cadeau …${ticket.simulation.giftCard.code.slice(-6)} : ${money(ticket.simulation.giftCard.amountCents)} simulés${correction ? ' · montant test restitué' : ''}. Aucun débit réel.`));
             if (correction) entry.append(node('span', 'small', `${correction.reference} · annulé en simulation : ${correction.reason}`));
             else entry.append(button('Annuler la simulation', 'text-button', () => openCancellation(ticket)));
             list.append(entry);
@@ -165,7 +167,8 @@
         $('grand_total').textContent = money(draft?.totals.grossCents || 0);
         $('mobile_total').textContent = $('grand_total').textContent;
         $('checkout').disabled = !editable || state.busy || !draft.lines.length || draft.totals.needsPrice;
-        $('ticket_note').textContent = draft?.simulation ? `SIMULATION SANS VALEUR FISCALE · monnaie simulée : ${money(draft.simulation.changeCents)}. Aucun stock modifié.` : draft?.totals.needsPrice ? 'Confirmez les prix et la TVA pour continuer.' : 'Brouillon enregistré dans le service caisse.';
+        const giftNote = draft?.simulation?.giftCard ? ` Carte cadeau : ${money(draft.simulation.giftCard.amountCents)} simulés, reste test après ce ticket : ${money(draft.simulation.giftCard.remainingCents)}. Aucun débit réel.` : '';
+        $('ticket_note').textContent = draft?.simulation ? `SIMULATION SANS VALEUR FISCALE · monnaie simulée : ${money(draft.simulation.changeCents)}. Aucun stock modifié.${giftNote}` : draft?.totals.needsPrice ? 'Confirmez les prix et la TVA pour continuer.' : 'Brouillon enregistré dans le service caisse.';
     }
     function renderAppointments() {
         const list = $('appointments_list'); list.replaceChildren();
@@ -199,6 +202,7 @@
     }
     function openCancellation(ticket) {
         state.cancellationTicket = ticket;
+        state.cancellationKey = crypto.randomUUID();
         $('cancel_ticket_reference').textContent = `${ticket.simulation?.reference || 'Ticket'} · ${ticket.clientName} · ${money(ticket.totals.grossCents)}`;
         $('cancel_form').reset(); $('cancel_form').querySelector('.form-error').textContent = '';
         $('cancel_dialog').showModal(); $('cancel_reason').focus();
@@ -226,16 +230,47 @@
         const line = state.draft.lines.find(l => l.id === state.lineId);
         await mutate('line', { lineId: line.id, quantity: line.quantity, unitCents: cents($('line_price').value), ...tax($('line_tax').value) }); $('price_dialog').close();
     }, event.currentTarget); };
-    $('checkout').onclick = () => { state.paymentKey = crypto.randomUUID(); $('payment_form').reset(); $('payment_form').querySelector('.form-error').textContent = ''; $('cash_label').hidden = true; $('cash_amount').required = false; $('change_due').textContent = ''; $('payment_total').textContent = money(state.draft.totals.grossCents); $('payment_dialog').showModal(); };
+    $('checkout').onclick = () => {
+        state.paymentKey = crypto.randomUUID(); state.paymentRequest = null;
+        $('payment_form').reset(); $('payment_form').querySelector('.form-error').textContent = '';
+        $('gift_summary').textContent = 'Le solde réel est consulté, mais les essais ne le débitent jamais.';
+        $('payment_form').querySelector('details').open = false;
+        $('payment_total').textContent = money(state.draft.totals.grossCents); updateCash(); $('payment_dialog').showModal();
+    };
+    function remainingPayment() {
+        const gift = $('gift_code').value.trim() ? cents($('gift_amount').value || '0') : 0;
+        if (gift > state.draft.totals.grossCents) throw new Error('Le montant carte cadeau dépasse le ticket.');
+        return state.draft.totals.grossCents - gift;
+    }
     function updateCash() {
         const cash = document.querySelector('[name=method]:checked').value === 'cash'; $('cash_label').hidden = !cash; $('cash_amount').required = cash;
         $('terminal_reference_label').hidden = cash;
-        try { const change = cents($('cash_amount').value || '0') - state.draft.totals.grossCents; $('change_due').textContent = cash ? change >= 0 ? `Monnaie à rendre : ${money(change)}` : `Il manque ${money(-change)}` : ''; } catch { $('change_due').textContent = ''; }
+        $('gift_amount').required = Boolean($('gift_code').value.trim());
+        try {
+            const remaining = remainingPayment(), change = cents($('cash_amount').value || '0') - remaining;
+            $('payment_residual').textContent = `Reste à régler en simulation : ${money(remaining)}`;
+            $('change_due').textContent = cash ? change >= 0 ? `Monnaie à rendre : ${money(change)}` : `Il manque ${money(-change)}` : '';
+        } catch (error) { $('change_due').textContent = ''; $('payment_residual').textContent = error.message; }
     }
     document.querySelectorAll('[name=method]').forEach(input => input.onchange = updateCash); $('cash_amount').oninput = updateCash;
+    $('gift_amount').oninput = updateCash;
+    $('gift_code').oninput = () => { $('gift_summary').textContent = 'Vérifiez cette carte avant de poursuivre. Le solde sera revérifié à la validation.'; updateCash(); };
+    $('gift_check').onclick = () => void action(async () => {
+        const quote = await api('gift-card-check', { giftCardCode: $('gift_code').value });
+        $('gift_summary').textContent = `Solde disponible pour les tests : ${money(quote.availableCents)} · solde réel inchangé : ${money(quote.realBalanceCents)}${quote.expiresAt ? ' · validité : ' + new Date(quote.expiresAt + 'T12:00:00').toLocaleDateString('fr-FR') : ''}.`;
+        if (!$('gift_amount').value) $('gift_amount').value = (Math.min(quote.availableCents, state.draft.totals.grossCents) / 100).toFixed(2).replace('.', ',');
+        updateCash();
+    }, $('payment_form'));
     $('payment_form').onsubmit = event => { event.preventDefault(); void action(async () => {
         const method = document.querySelector('[name=method]:checked').value;
-        await mutate('simulate', { key: state.paymentKey, method, terminalReference: $('terminal_reference').value, tenderedCents: method === 'cash' ? cents($('cash_amount').value) : undefined }); $('payment_dialog').close();
+        const giftCardCode = $('gift_code').value.trim().toUpperCase();
+        const request = { key: state.paymentKey, draftId: state.draft.id, version: state.paymentRequest?.version ?? state.draft.version,
+            method, terminalReference: $('terminal_reference').value, tenderedCents: method === 'cash' ? cents($('cash_amount').value) : undefined,
+            giftCardCode: giftCardCode || undefined, giftCardAmountCents: giftCardCode ? cents($('gift_amount').value) : undefined };
+        if (state.paymentRequest && JSON.stringify(request) !== JSON.stringify(state.paymentRequest)) throw new Error('La dernière demande doit être confirmée sans modification. Rechargez le ticket avant de changer le règlement.');
+        state.paymentRequest = request;
+        try { state.draft = await api('simulate', request); await load(); $('payment_dialog').close(); }
+        catch (error) { if (error.status && error.status < 500) state.paymentRequest = null; throw error; }
     }, event.currentTarget); };
     $('cash_open_form').onsubmit = event => { event.preventDefault(); void action(async () => {
         await api('cash-open', { key: crypto.randomUUID(), openingCents: cents($('opening_amount').value) });
@@ -249,7 +284,7 @@
     $('cancel_form').onsubmit = event => { event.preventDefault(); void action(async () => {
         const ticket = state.cancellationTicket;
         if (!ticket) throw new Error('Ticket à annuler introuvable.');
-        await api('cancel', { ticketId: ticket.id, key: crypto.randomUUID(), reason: $('cancel_reason').value });
+        await api('cancel', { ticketId: ticket.id, key: state.cancellationKey, reason: $('cancel_reason').value });
         if (state.draft?.id === ticket.id) state.draft = null;
         await load(); renderTicketHistory(); $('cancel_dialog').close();
     }, event.currentTarget); };

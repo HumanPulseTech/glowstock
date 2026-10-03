@@ -1,6 +1,7 @@
 const { randomUUID } = require('node:crypto');
 const { CaisseError } = require('./errors');
 const { manualPayment } = require('./payment-record');
+const { giftBalance, simulationRequest } = require('./gift-payment');
 const demand = (valid, message, status) => { if (!valid) throw new CaisseError(message, status); };
 const integer = (value, min, max) => Number.isSafeInteger(value) && value >= min && value <= max;
 const name = value => typeof value === 'string' && value.trim().length > 0 && value.trim().length <= 150;
@@ -42,6 +43,7 @@ function view(state, context) {
 function applyCommand(state, command, input, context) {
     demand(input && typeof input === 'object' && !Array.isArray(input), 'Demande invalide.');
     const now = new Date().toISOString();
+    if (command === 'gift-card-check') return { result: giftBalance(state, context, input.giftCardCode) };
     if (command === 'cash-open') {
         demand(typeof input.key === 'string' && /^[a-f0-9-]{36}$/.test(input.key), 'Clé d’ouverture manquante.');
         if (state.cashSession?.status === 'open' && state.cashSession.openKey === input.key) return { result: state.cashSession };
@@ -59,8 +61,11 @@ function applyCommand(state, command, input, context) {
         demand(integer(input.closingCents, 0, 1000000000), 'Montant de fermeture invalide.');
         const cancelledTicketIds = new Set((state.corrections || []).filter(c => c.createdAt >= session.openedAt).map(c => c.ticketId));
         const simulatedTickets = state.drafts.filter(d => d.status === 'simulated' && d.simulation?.validatedAt >= session.openedAt && !cancelledTicketIds.has(d.id));
-        const payments = { ticketCount: simulatedTickets.length, cardCents: 0, cashCents: 0, otherCents: 0 };
-        for (const draft of simulatedTickets) payments[`${draft.simulation.method}Cents`] += draft.totals.grossCents;
+        const payments = { ticketCount: simulatedTickets.length, cardCents: 0, cashCents: 0, otherCents: 0, giftCardCents: 0 };
+        for (const draft of simulatedTickets) {
+            payments[`${draft.simulation.method}Cents`] += draft.simulation.amountCents ?? draft.totals.grossCents;
+            payments.giftCardCents += draft.simulation.giftCard?.amountCents || 0;
+        }
         const simulatedCashCents = payments.cashCents;
         session.status = 'closed'; session.closeKey = input.key; session.closedAt = now; session.closingCents = input.closingCents;
         session.simulatedCashCents = simulatedCashCents; session.expectedCents = session.openingCents + simulatedCashCents;
@@ -109,15 +114,20 @@ function applyCommand(state, command, input, context) {
         demand(ticket, 'Ticket simulé introuvable.', 404);
         demand(typeof input.key === 'string' && /^[a-f0-9-]{36}$/.test(input.key), 'Clé d’annulation manquante.');
         const existingCorrection = (state.corrections || []).find(c => c.ticketId === ticket.id);
-        if (existingCorrection?.requestKey === input.key) return { result: existingCorrection };
+        if (existingCorrection?.requestKey === input.key) {
+            demand(existingCorrection.reason === input.reason?.trim(), 'Cette clé d’annulation a déjà été utilisée avec un autre motif.', 409);
+            return { result: existingCorrection };
+        }
+        demand(!(state.corrections || []).some(c => c.requestKey === input.key), 'Cette clé d’annulation a déjà été utilisée.', 409);
         demand(!existingCorrection, 'Ce ticket possède déjà une annulation. Créez une nouvelle opération si nécessaire.', 409);
         demand(typeof input.reason === 'string' && input.reason.trim().length >= 3 && input.reason.trim().length <= 500, 'Motif d’annulation requis (3 à 500 caractères).');
         const sequence = Number(state.ticketSequence || 0) + 1;
         const correction = { id: randomUUID(), reference: `SIM-ANN-${String(sequence).padStart(6, '0')}`, ticketId: ticket.id,
             ticketReference: ticket.simulation.reference, reason: input.reason.trim(), amountCents: ticket.totals.grossCents,
-            createdAt: now, requestKey: input.key, auditSeal: null };
+            createdAt: now, requestKey: input.key, auditSeal: null,
+            giftCardRefundCents: ticket.simulation.giftCard?.amountCents || 0 };
         state.ticketSequence = sequence;
-        state.corrections = [...(state.corrections || []), correction].slice(-1000);
+        state.corrections = [...(state.corrections || []), correction];
         // The frozen ticket is retained intact. Its cancellation is a distinct, auditable event.
         return { result: correction, event: { type: 'simulation.cancelled', correction: structuredClone(correction) } };
     }
@@ -125,6 +135,11 @@ function applyCommand(state, command, input, context) {
     demand(draft, 'Ticket introuvable.', 404);
     if (command === 'simulate' && draft.status === 'simulated') {
         demand(input.key === draft.checkoutKey, 'Ticket déjà validé en simulation.', 409);
+        const request = simulationRequest(input);
+        const original = draft.checkoutRequest || { version: draft.version - 1, method: draft.simulation.method,
+            terminalReference: draft.simulation.terminalReference || '', tenderedCents: draft.simulation.method === 'cash' ? draft.simulation.tenderedCents : null,
+            giftCardCode: null, giftCardAmountCents: 0 };
+        demand(JSON.stringify(request) === JSON.stringify(original), 'Cette clé de validation a déjà été utilisée avec un autre règlement.', 409);
         return { result: draft };
     }
     demand(draft.status === 'draft', 'Ce ticket est figé. Une nouvelle opération est nécessaire.', 409);
@@ -148,10 +163,20 @@ function applyCommand(state, command, input, context) {
         else { line.quantity = input.quantity; if (input.unitCents !== undefined) Object.assign(line, pricing(input)); }
     } else if (command === 'simulate') {
         demand(typeof input.key === 'string' && /^[a-f0-9-]{36}$/.test(input.key), 'Clé de validation manquante.');
+        demand(!state.drafts.some(ticket => ticket.id !== draft.id && ticket.checkoutKey === input.key), 'Cette clé de validation a déjà été utilisée.', 409);
         demand(draft.lines.length && !totals(draft.lines).needsPrice, 'Complète les prix et la TVA avant de continuer.');
         const sum = totals(draft.lines);
-        const payment = manualPayment(input, sum.grossCents);
-        demand(input.method !== 'cash' || integer(input.tenderedCents, sum.grossCents, 1000000000), 'Montant reçu insuffisant.');
+        const request = simulationRequest(input);
+        let giftCard = null;
+        if (request.giftCardCode) {
+            const balance = giftBalance(state, context, request.giftCardCode);
+            demand(request.giftCardAmountCents <= sum.grossCents, 'Le montant carte cadeau dépasse le ticket.');
+            demand(request.giftCardAmountCents <= balance.availableCents, 'Solde simulé de la carte cadeau insuffisant.', 409);
+            giftCard = { id: balance.id, code: balance.code, amountCents: request.giftCardAmountCents, remainingCents: balance.availableCents - request.giftCardAmountCents };
+        }
+        const residualCents = sum.grossCents - (giftCard?.amountCents || 0);
+        const payment = manualPayment(input, residualCents);
+        demand(input.method !== 'cash' || integer(input.tenderedCents, residualCents, 1000000000), 'Montant reçu insuffisant.');
         // Stock checked for UX only. This pilot NEVER changes production inventory.
         for (const line of draft.lines.filter(l => l.kind === 'product')) {
             const available = context.products.find(p => p.id === line.productId);
@@ -160,10 +185,11 @@ function applyCommand(state, command, input, context) {
         }
         const sequence = Number(state.ticketSequence || 0) + 1;
         state.ticketSequence = sequence;
-        draft.status = 'simulated'; draft.checkoutKey = input.key;
+        draft.status = 'simulated'; draft.checkoutKey = input.key; draft.checkoutRequest = request;
         draft.simulation = { label: 'SIMULATION — AUCUN ENCAISSEMENT — SANS VALEUR FISCALE', ...payment,
-            tenderedCents: input.method === 'cash' ? input.tenderedCents : sum.grossCents,
-            changeCents: input.method === 'cash' ? input.tenderedCents - sum.grossCents : 0,
+            giftCard,
+            tenderedCents: input.method === 'cash' ? input.tenderedCents : residualCents,
+            changeCents: input.method === 'cash' ? input.tenderedCents - residualCents : 0,
             reference: `SIM-${String(sequence).padStart(6, '0')}`, auditSeal: null, validatedAt: now };
     } else throw new CaisseError('Opération inconnue.', 404);
     draft.totals = totals(draft.lines); draft.updatedAt = now; draft.version++;

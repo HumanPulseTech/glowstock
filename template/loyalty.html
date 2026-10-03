@@ -1,1 +1,102 @@
-<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Fidélité — GlowStock</title><body><main><a href="/dashboard/">← Tableau de bord</a><h1>Fidélité & cartes cadeaux</h1><p>Les mouvements automatiques restent désactivés tant que la Caisse est en simulation.</p><form id="settings"><label>Points par euro <input name="pointsPerEuro" type="number" min="1" value="1"></label><label>Points pour récompense <input name="rewardPoints" type="number" min="1" value="100"></label><label>Valeur récompense (€) <input name="rewardAmount" value="5,00"></label><label>Expiration (jours, facultatif) <input name="expiresAfterDays" type="number" min="1"></label><label><input name="enabled" type="checkbox"> Activer le programme</label><button>Enregistrer</button></form><h2>Créer une carte cadeau</h2><form id="card"><label>Montant (€) <input name="amount" value="25,00" required></label><label>Expiration <input name="expiresAt" type="date"></label><button>Créer la carte</button></form><p id="message"></p><h2>Cartes récentes</h2><div id="cards"></div></main><script src="/js/loyalty.js"></script></body></html>
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Fidélité & cartes cadeaux — GlowStock</title>
+  <link rel="stylesheet" href="/css/loyalty.css">
+  <script src="/js/loyalty.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Aller au contenu</a>
+  <header class="app-header">
+    <a class="brand" href="/dashboard/" aria-label="GlowStock — tableau de bord"><img src="/assets/glowstock-logo.svg" alt="GlowStock" width="150" height="45"></a>
+    <nav aria-label="Navigation principale">
+      <a href="/dashboard/">Tableau de bord</a>
+      <a href="/dashboard/clientes/">Clientes</a>
+      <a href="/dashboard/caisse/">Caisse</a>
+      <a href="/dashboard/fidelite/" aria-current="page">Fidélité</a>
+    </nav>
+  </header>
+  <main id="main">
+    <div class="page-heading">
+      <div><p class="eyebrow">LES PETITES ATTENTIONS</p><h1>Le plaisir de revenir.</h1><p>Cartes cadeaux et fidélité, au même endroit.</p></div>
+      <button id="new-card" type="button" class="button primary"><span aria-hidden="true">+</span> Créer une carte</button>
+    </div>
+    <p class="notice"><strong>Caisse en simulation.</strong> Les essais ne débitent jamais le solde réel des cartes et n’attribuent aucun point automatiquement.</p>
+    <p id="message" class="message" role="status" aria-live="polite"></p>
+    <div class="view-switch" aria-label="Sections fidélité">
+      <button type="button" id="cards-tab" aria-pressed="true" aria-controls="cards-view">Cartes cadeaux</button>
+      <button type="button" id="settings-tab" aria-pressed="false" aria-controls="settings-view">Programme fidélité</button>
+    </div>
+
+    <section id="cards-view" aria-label="Cartes cadeaux">
+      <div class="gift-layout">
+        <section class="panel card-directory" aria-labelledby="cards-title">
+          <div class="section-heading"><div><p class="eyebrow">VOTRE ÉTABLISSEMENT</p><h2 id="cards-title">Les cartes cadeaux</h2></div><button id="refresh-cards" type="button" class="text-button">Actualiser</button></div>
+          <form id="lookup-form" class="lookup-form">
+            <label for="lookup-code">Retrouver une carte par son code</label>
+            <div class="search-row"><input id="lookup-code" name="code" type="text" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="GS-…" required><button class="button secondary" type="submit" aria-label="Rechercher la carte">Chercher</button></div>
+          </form>
+          <div id="cards" class="card-list" aria-busy="true"><p class="empty">Chargement des cartes…</p></div>
+          <p class="small">Les cartes récentes sont affichées ici. Utilisez le code pour retrouver une carte plus ancienne.</p>
+        </section>
+
+        <section id="card-detail" class="panel card-detail" aria-labelledby="detail-title" aria-busy="false">
+          <div id="detail-empty" class="detail-empty"><span class="empty-art" aria-hidden="true">✦</span><h2>Une attention qui dure.</h2><p>Sélectionnez une carte pour voir son solde, télécharger son PDF et consulter ses mouvements.</p></div>
+          <div id="detail-content" hidden>
+            <div class="section-heading"><h2 id="detail-title" tabindex="-1">Carte cadeau</h2><span id="detail-status" class="status"></span></div>
+            <div class="gift-preview">
+              <div class="gift-preview-content"><span class="eyebrow">CARTE CADEAU</span><p id="detail-balance" class="gift-balance"></p><p class="gift-balance-label">Solde disponible</p><code id="detail-code"></code></div>
+              <div class="qr-wrap"><img id="detail-qr" width="136" height="136" alt="QR code contenant le code de la carte cadeau"><p id="qr-error" class="small" hidden>QR code indisponible. Le code reste utilisable.</p></div>
+            </div>
+            <dl id="detail-facts" class="card-facts"></dl>
+            <div class="detail-actions"><a id="detail-pdf" class="button primary" download>Télécharger le PDF</a><button id="disable-card" type="button" class="button danger">Désactiver la carte</button></div>
+            <p class="small privacy-note">Le code permet d’identifier la carte. Ne partagez son PDF qu’avec la personne à qui elle est destinée.</p>
+            <div class="history-heading"><h3>Historique des opérations</h3><p class="small">Chaque opération conserve sa propre ligne.</p></div>
+            <ol id="detail-ledger" class="ledger"></ol>
+            <button id="load-history" type="button" class="button secondary wide" hidden>Voir les opérations précédentes</button>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="settings-view" hidden aria-labelledby="settings-title">
+      <div class="panel settings-panel">
+        <p class="eyebrow">FAIRE REVENIR VOS CLIENTES</p><h2 id="settings-title">Votre programme fidélité</h2><p class="muted">Préparez vos règles. L’attribution automatique reste désactivée pendant la simulation de caisse.</p>
+        <form id="settings" class="form-grid">
+          <fieldset id="settings-fields" disabled>
+            <label class="check-label"><input name="enabled" type="checkbox"><span>Activer le programme de fidélité</span></label>
+            <div class="form-row"><label>Points par euro dépensé<input name="pointsPerEuro" type="number" min="1" max="1000" step="1" value="1" required></label><label>Points pour une récompense<input name="rewardPoints" type="number" min="1" max="1000000" step="1" value="100" required></label></div>
+            <div class="form-row"><label>Valeur de la récompense (€)<input name="rewardAmount" inputmode="decimal" value="5,00" maxlength="12" required></label><label>Expiration des points (jours)<input name="expiresAfterDays" type="number" min="1" max="3650" step="1" placeholder="Sans expiration"></label></div>
+            <button class="button primary" type="submit">Enregistrer le programme</button>
+          </fieldset>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="create-dialog" aria-labelledby="create-title">
+    <div class="dialog-heading"><div><p class="eyebrow">UN CADEAU À PARTAGER</p><h2 id="create-title">Créer une carte cadeau</h2></div><button id="close-create" type="button" class="close-button" aria-label="Fermer la création">×</button></div>
+    <p class="muted">Cette action crée un solde réel, mais n’enregistre aucun encaissement.</p>
+    <form id="card" class="form-grid">
+      <fieldset id="card-fields">
+        <div class="form-row"><label>Montant initial (€)<input name="amount" inputmode="decimal" maxlength="12" value="25,00" required></label><label>Valable jusqu’au (inclus)<input name="expiresAt" type="date"><span class="small">Facultatif : sans expiration si vide.</span></label></div>
+        <label>Origine de la carte<select name="issueKind"><option value="gift">Carte offerte par l’établissement</option><option value="external_sale">Vente déjà enregistrée ailleurs</option></select></label>
+        <label id="reference-label">Référence de l’opération (facultatif)<input name="reference" maxlength="150" placeholder="Ex. dossier ou opération interne"></label>
+        <label>Motif<input name="reason" maxlength="500" placeholder="Ex. cadeau de bienvenue, vente du jour…" required></label>
+        <label>Traitement du bon<select name="taxTreatment"><option value="unspecified">À déterminer</option><option value="single_purpose">Bon à usage unique</option><option value="multi_purpose">Bon à usages multiples</option></select><span class="small">Qualification à renseigner selon le traitement comptable retenu. Aucun calcul de TVA n’est effectué ici.</span></label>
+        <p id="create-error" class="form-error" role="alert"></p>
+        <button class="button primary wide" type="submit">Créer la carte cadeau</button>
+      </fieldset>
+    </form>
+  </dialog>
+
+  <dialog id="disable-dialog" aria-labelledby="disable-title">
+    <div class="dialog-heading"><h2 id="disable-title">Désactiver cette carte ?</h2><button id="close-disable" type="button" class="close-button" aria-label="Fermer la désactivation">×</button></div>
+    <p class="muted">La carte ne pourra plus être utilisée. Son solde et son historique seront conservés ; ce n’est pas un remboursement.</p>
+    <p id="disable-summary" class="disable-summary"></p>
+    <form id="disable-form" class="form-grid"><fieldset id="disable-fields"><label>Motif de désactivation<textarea name="reason" maxlength="500" required placeholder="Expliquez pourquoi la carte est désactivée."></textarea></label><p id="disable-error" class="form-error" role="alert"></p><button class="button danger wide" type="submit">Confirmer la désactivation</button></fieldset></form>
+  </dialog>
+</body>
+</html>

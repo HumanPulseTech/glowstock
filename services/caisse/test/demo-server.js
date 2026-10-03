@@ -8,7 +8,9 @@ const { applyCommand } = require('../src/domain');
 const { signRequest } = require('../src/signing');
 async function startDemo(port = 0) {
     const root = path.join(__dirname, '../../..'), secret = randomBytes(48).toString('hex'), store = new MemoryStore();
-    const context = { day: '2026-09-21', minuteNow: 635, products: [{ id: 1, name: 'Huile cuticules', quantity: 12 }, { id: 2, name: 'Crème mains velours', quantity: 8 }],
+    const context = { tenantId: '1', day: '2026-09-21', minuteNow: 635,
+        giftCard: { id: 'demo-gift-1', tenantId: '1', code: 'GS-00000000000000000000000000000001', status: 'active', availableCents: 5000, expiresAt: '2099-12-31' },
+        products: [{ id: 1, name: 'Huile cuticules', quantity: 12 }, { id: 2, name: 'Crème mains velours', quantity: 8 }],
         appointments: [{ id: 1, clientName: 'Camille Martin', serviceName: 'Pose complète', startTime: '10:00', endTime: '11:00', startMinute: 600, endMinute: 660 }, { id: 2, clientName: 'Léa Dubois', serviceName: 'Remplissage', startTime: '11:30', endTime: '12:15', startMinute: 690, endMinute: 735 }] };
     for (const [name, amount, productId] of [['Pose complète', 5500, null], ['Remplissage', 4500, null], ['Dépose & soin', 2500, null], ['Nail art', 500, null], ['Huile cuticules', 1200, 1], ['Crème mains velours', 1600, 2]]) {
         await store.run('1', '1', state => applyCommand(state, 'catalog', { kind: productId ? 'product' : 'service', name, unitCents: amount, productId, taxMode: 'vat', taxBps: 2000 }, context));

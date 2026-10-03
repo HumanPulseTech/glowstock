@@ -199,7 +199,7 @@ app.use('/api/invoices', invoices.createInvoiceRouter({ getPool, hasPermission, 
 app.use('/api/inventory/imports', stockImport.createRouter({ getPool, hasPermission, getSubscriptionStatus, requireSameOrigin, limitRequest }));
 app.use('/api/booking', booking.createPublicRouter({ getPool, limitRequest }));
 app.use('/api/booking-admin', booking.createAdminRouter({ getPool, hasPermission, getSubscriptionStatus, requireSameOrigin }));
-app.use('/api/loyalty', loyalty.createRouter({ getPool, hasPermission, getSubscriptionStatus, requireSameOrigin }));
+app.use('/api/loyalty', loyalty.createRouter({ getPool, hasPermission, getSubscriptionStatus, requireSameOrigin, limitRequest }));
 
 function requireApiAuth(req, res, next) {
     if (!req.session?.userId) return res.status(401).json({ error: 'Session expirée.' });
