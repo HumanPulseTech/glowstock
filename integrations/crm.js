@@ -143,12 +143,14 @@ function createCrmRouter(deps) {
         const id = idFor(req.params.id);
         const customer = await pool.query('SELECT id FROM crm_customers WHERE id=? AND id_user=?', [id, userId]);
         if (!customer.length) throw new InputError('Cliente introuvable.', 404);
-        const [appointments, profiles, consents, media, usedProducts] = await Promise.all([
+        const [appointments, profiles, consents, media, usedProducts, loyaltyAccounts, loyaltyLedger] = await Promise.all([
             pool.query("SELECT p.id, DATE_FORMAT(p.appointment_date, '%Y-%m-%d') AS day, TIME_FORMAT(p.start_time, '%H:%i') AS time, p.service_name, p.status, p.cancelled_at, p.cancellation_reason, s.name AS linked_service_name FROM planning_entries p JOIN crm_appointment_links l ON l.appointment_id=p.id AND l.id_user=p.id_user LEFT JOIN crm_services s ON s.id=l.service_id AND s.id_user=l.id_user WHERE p.id_user=? AND l.customer_id=? ORDER BY p.appointment_date DESC, p.start_time DESC LIMIT 1001", [userId, id]),
             pool.query('SELECT preferences,observations,version FROM crm_customer_profiles WHERE customer_id=? AND id_user=?', [id, userId]).catch(error => error.code === 'ER_NO_SUCH_TABLE' ? [] : Promise.reject(error)),
             pool.query('SELECT consent_type,action,details,created_at FROM crm_customer_consents WHERE customer_id=? AND id_user=? ORDER BY created_at DESC LIMIT 101', [id, userId]).catch(error => error.code === 'ER_NO_SUCH_TABLE' ? [] : Promise.reject(error)),
             pool.query('SELECT id,kind,filename,mime_type,byte_size,created_at FROM crm_customer_media WHERE customer_id=? AND id_user=? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 51', [id, userId]).catch(error => error.code === 'ER_NO_SUCH_TABLE' ? [] : Promise.reject(error)),
-            pool.query('SELECT DISTINCT pr.nom FROM crm_appointment_links l JOIN crm_service_products sp ON sp.service_id=l.service_id JOIN produits pr ON pr.id=sp.product_id AND pr.id_user=l.id_user WHERE l.customer_id=? AND l.id_user=? ORDER BY pr.nom LIMIT 101', [id, userId]).catch(error => error.code === 'ER_NO_SUCH_TABLE' ? [] : Promise.reject(error))
+            pool.query('SELECT DISTINCT pr.nom FROM crm_appointment_links l JOIN crm_service_products sp ON sp.service_id=l.service_id JOIN produits pr ON pr.id=sp.product_id AND pr.id_user=l.id_user WHERE l.customer_id=? AND l.id_user=? ORDER BY pr.nom LIMIT 101', [id, userId]).catch(error => error.code === 'ER_NO_SUCH_TABLE' ? [] : Promise.reject(error)),
+            pool.query('SELECT balance_points FROM loyalty_accounts WHERE customer_id=? AND id_user=?', [id, userId]).catch(error => error.code === 'ER_NO_SUCH_TABLE' ? [] : Promise.reject(error)),
+            pool.query('SELECT operation_type,points_delta,balance_after,reason,created_at FROM loyalty_ledger WHERE customer_id=? AND id_user=? ORDER BY created_at DESC LIMIT 101', [id, userId]).catch(error => error.code === 'ER_NO_SUCH_TABLE' ? [] : Promise.reject(error))
         ]);
         let tickets = null;
         try {
@@ -156,7 +158,7 @@ function createCrmRouter(deps) {
             if (upstream.status === 200) tickets = upstream.data.drafts.filter(d => d.customerId === id);
         } catch { /* Unknown is not zero. Preserve appointments when cashier is down. */ }
         const simulated = tickets?.filter(t => t.status === 'simulated') || [];
-        res.json({ appointments: appointments.slice(0, 1000), appointmentsTruncated: appointments.length > 1000, profile: profiles[0] || { preferences: '', observations: '', version: 0 }, consents: consents.slice(0, 100), media: media.slice(0, 50), usedProducts: usedProducts.slice(0, 100).map(item => item.nom), tickets,
+        res.json({ appointments: appointments.slice(0, 1000), appointmentsTruncated: appointments.length > 1000, profile: profiles[0] || { preferences: '', observations: '', version: 0 }, consents: consents.slice(0, 100), media: media.slice(0, 50), usedProducts: usedProducts.slice(0, 100).map(item => item.nom), loyalty: { balancePoints: Number(loyaltyAccounts[0]?.balance_points || 0), ledger: loyaltyLedger.slice(0, 100) }, tickets,
             averageTicketCents: null, simulatedAverageCents: simulated.length ? Math.round(simulated.reduce((n, t) => n + t.totals.grossCents, 0) / simulated.length) : null });
     }));
     router.use((error, req, res, next) => {

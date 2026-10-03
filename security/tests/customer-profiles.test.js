@@ -16,4 +16,6 @@ test('CRM is no longer gated by cashier availability and media is tenant-scoped'
     assert.match(source, /crm_customer_media WHERE id=\? AND customer_id=\? AND id_user=\?/);
     assert.match(source, /X-Content-Type-Options/);
     assert.match(source, /created_at DESC/);
+    assert.match(source, /loyalty_accounts WHERE customer_id=\? AND id_user=\?/);
+    assert.match(source, /loyalty_ledger WHERE customer_id=\? AND id_user=\?/);
 });
