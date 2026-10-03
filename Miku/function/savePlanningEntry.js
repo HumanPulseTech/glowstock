@@ -37,7 +37,7 @@ module.exports = async function savePlanningEntry(input, socket) {
             return socket.emit('planning entry error', 'Ce créneau est en dehors de tes horaires d’ouverture.');
         }
         if (entryId) {
-            const owned = await connection.query('SELECT id FROM planning_entries WHERE id = ? AND id_user = ? FOR UPDATE', [entryId, userId]);
+            const owned = await connection.query("SELECT id FROM planning_entries WHERE id = ? AND id_user = ? AND status='confirmed' FOR UPDATE", [entryId, userId]);
             if (!owned.length) {
                 await connection.rollback();
                 return socket.emit('planning entry error', 'Ce rendez-vous est introuvable.');
@@ -45,7 +45,7 @@ module.exports = async function savePlanningEntry(input, socket) {
         }
         const conflicts = await connection.query(
             `SELECT id FROM planning_entries
-             WHERE id_user = ? AND appointment_date = ? AND start_time < ? AND end_time > ?${entryId ? ' AND id <> ?' : ''}
+             WHERE id_user = ? AND appointment_date = ? AND status='confirmed' AND start_time < ? AND end_time > ?${entryId ? ' AND id <> ?' : ''}
              FOR UPDATE`,
             entryId ? [userId, appointmentDate, endTime, startTime, entryId] : [userId, appointmentDate, endTime, startTime]
         );
@@ -57,7 +57,7 @@ module.exports = async function savePlanningEntry(input, socket) {
         let savedId = entryId;
         if (entryId) {
             await connection.query(
-                'UPDATE planning_entries SET appointment_date = ?, start_time = ?, end_time = ?, client_name = ?, service_name = ?, notes = ? WHERE id = ? AND id_user = ?',
+                "UPDATE planning_entries SET appointment_date = ?, start_time = ?, end_time = ?, client_name = ?, service_name = ?, notes = ? WHERE id = ? AND id_user = ? AND status='confirmed'",
                 [appointmentDate, startTime, endTime, clientName, serviceName || null, notes || null, entryId, userId]
             );
         } else {

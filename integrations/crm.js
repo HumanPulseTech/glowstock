@@ -80,7 +80,7 @@ function createCrmRouter(deps) {
     }, true));
     router.get('/appointments', wrap(async (req, res, pool, userId) => {
         const page = Math.max(0, Number(req.query.page) || 0); if (!Number.isSafeInteger(page) || page > 100000) throw new InputError('Page invalide.');
-        const rows = await pool.query("SELECT p.id, DATE_FORMAT(p.appointment_date, '%Y-%m-%d') AS day, TIME_FORMAT(p.start_time, '%H:%i') AS time, p.client_name, p.service_name, l.customer_id, l.service_id FROM planning_entries p LEFT JOIN crm_appointment_links l ON l.appointment_id=p.id AND l.id_user=p.id_user WHERE p.id_user=? ORDER BY p.appointment_date DESC, p.start_time DESC, p.id DESC LIMIT 51 OFFSET ?", [userId, page * 50]);
+        const rows = await pool.query("SELECT p.id, DATE_FORMAT(p.appointment_date, '%Y-%m-%d') AS day, TIME_FORMAT(p.start_time, '%H:%i') AS time, p.client_name, p.service_name, p.status, p.cancelled_at, l.customer_id, l.service_id FROM planning_entries p LEFT JOIN crm_appointment_links l ON l.appointment_id=p.id AND l.id_user=p.id_user WHERE p.id_user=? ORDER BY p.appointment_date DESC, p.start_time DESC, p.id DESC LIMIT 51 OFFSET ?", [userId, page * 50]);
         res.json({ rows: rows.slice(0, 50), more: rows.length > 50, page });
     }));
     router.post('/appointments/:id/link', wrap(async (req, res, pool, userId) => {
@@ -144,7 +144,7 @@ function createCrmRouter(deps) {
         const customer = await pool.query('SELECT id FROM crm_customers WHERE id=? AND id_user=?', [id, userId]);
         if (!customer.length) throw new InputError('Cliente introuvable.', 404);
         const [appointments, profiles, consents, media, usedProducts] = await Promise.all([
-            pool.query("SELECT p.id, DATE_FORMAT(p.appointment_date, '%Y-%m-%d') AS day, TIME_FORMAT(p.start_time, '%H:%i') AS time, p.service_name, s.name AS linked_service_name FROM planning_entries p JOIN crm_appointment_links l ON l.appointment_id=p.id AND l.id_user=p.id_user LEFT JOIN crm_services s ON s.id=l.service_id AND s.id_user=l.id_user WHERE p.id_user=? AND l.customer_id=? ORDER BY p.appointment_date DESC, p.start_time DESC LIMIT 1001", [userId, id]),
+            pool.query("SELECT p.id, DATE_FORMAT(p.appointment_date, '%Y-%m-%d') AS day, TIME_FORMAT(p.start_time, '%H:%i') AS time, p.service_name, p.status, p.cancelled_at, p.cancellation_reason, s.name AS linked_service_name FROM planning_entries p JOIN crm_appointment_links l ON l.appointment_id=p.id AND l.id_user=p.id_user LEFT JOIN crm_services s ON s.id=l.service_id AND s.id_user=l.id_user WHERE p.id_user=? AND l.customer_id=? ORDER BY p.appointment_date DESC, p.start_time DESC LIMIT 1001", [userId, id]),
             pool.query('SELECT preferences,observations,version FROM crm_customer_profiles WHERE customer_id=? AND id_user=?', [id, userId]).catch(error => error.code === 'ER_NO_SUCH_TABLE' ? [] : Promise.reject(error)),
             pool.query('SELECT consent_type,action,details,created_at FROM crm_customer_consents WHERE customer_id=? AND id_user=? ORDER BY created_at DESC LIMIT 101', [id, userId]).catch(error => error.code === 'ER_NO_SUCH_TABLE' ? [] : Promise.reject(error)),
             pool.query('SELECT id,kind,filename,mime_type,byte_size,created_at FROM crm_customer_media WHERE customer_id=? AND id_user=? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 51', [id, userId]).catch(error => error.code === 'ER_NO_SUCH_TABLE' ? [] : Promise.reject(error)),

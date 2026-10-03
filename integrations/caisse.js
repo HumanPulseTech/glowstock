@@ -33,7 +33,7 @@ async function loadContext(getPool, userId) {
     const pool = await getPool(), clock = parisClock();
     const [products, appointments] = await Promise.all([
         loadProducts(getPool, userId),
-        pool.query("SELECT id, client_name, service_name, TIME_FORMAT(start_time, '%H:%i') AS starts, TIME_FORMAT(end_time, '%H:%i') AS ends FROM planning_entries WHERE id_user = ? AND appointment_date = ? ORDER BY start_time LIMIT 201", [userId, clock.day])
+        pool.query("SELECT id, client_name, service_name, TIME_FORMAT(start_time, '%H:%i') AS starts, TIME_FORMAT(end_time, '%H:%i') AS ends FROM planning_entries WHERE id_user = ? AND appointment_date = ? AND status='confirmed' ORDER BY start_time LIMIT 201", [userId, clock.day])
     ]);
     if (products.length > 1000 || appointments.length > 200) throw new Error('CAISSE_PILOT_LIMIT');
     const minute = time => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));

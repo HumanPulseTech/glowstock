@@ -128,3 +128,10 @@ ALTER TABLE gift_card_ledger
  ADD UNIQUE INDEX IF NOT EXISTS gift_card_ledger_sequence (id_user,entry_no),
  ADD UNIQUE INDEX IF NOT EXISTS gift_card_ledger_source (id_user,source_key),
  ADD INDEX IF NOT EXISTS gift_card_ledger_reversal (id_user,gift_card_id,reversal_of);
+
+-- 8. Intégration réservation → planning → CRM (029)
+ALTER TABLE planning_entries
+ ADD COLUMN IF NOT EXISTS status ENUM('confirmed','cancelled') NOT NULL DEFAULT 'confirmed',
+ ADD COLUMN IF NOT EXISTS cancelled_at DATETIME NULL,
+ ADD COLUMN IF NOT EXISTS cancellation_reason VARCHAR(500) NULL,
+ ADD INDEX IF NOT EXISTS planning_entries_active_slot (id_user,status,appointment_date,start_time);

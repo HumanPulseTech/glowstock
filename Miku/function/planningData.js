@@ -16,7 +16,7 @@ module.exports = async function planningData(request, socket) {
         connection = await (await getPool()).getConnection();
         const [hours, entries] = await Promise.all([
             getBusinessHours(connection, userId),
-            connection.query(`SELECT id, appointment_date, start_time, end_time, client_name, service_name, notes FROM planning_entries WHERE id_user = ? AND appointment_date BETWEEN ? AND ? ORDER BY appointment_date ASC, start_time ASC`, [userId, weekStart, weekEnd])
+            connection.query(`SELECT id, appointment_date, start_time, end_time, client_name, service_name, notes FROM planning_entries WHERE id_user = ? AND appointment_date BETWEEN ? AND ? AND status='confirmed' ORDER BY appointment_date ASC, start_time ASC`, [userId, weekStart, weekEnd])
         ]);
         socket.emit('planning data', { weekStart, weekEnd, hours, entries: entries.map(normaliseEntry), canManagePlanning: await hasPermission(userId, 'manage_products') });
     } catch (error) {
